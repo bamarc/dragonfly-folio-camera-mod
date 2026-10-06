@@ -8,7 +8,7 @@ on:
 
 jobs:
   opensuse-build:
-    name: openSUSE Tumbleweed Build & Test
+    name: openSUSE Tumbleweed Build & Test (Drivers & Tools)
     runs-on: ubuntu-latest
     container:
       image: registry.opensuse.org/opensuse/tumbleweed:latest
@@ -17,6 +17,7 @@ jobs:
         run: |
           zypper --non-interactive refresh
           zypper --non-interactive install -y \
+            kernel-default-devel \
             kernel-devel \
             gcc-c++ \
             make \
@@ -30,7 +31,11 @@ jobs:
             kmod \
             tar \
             gzip \
-            gawk
+            gawk \
+            bc \
+            bison \
+            flex \
+            libelf-devel
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,15 +47,13 @@ jobs:
 
       - name: Build kernel modules
         run: |
-          # In container, uname -r is host kernel; discover openSUSE installed build dir directly
-          KDIR="$(ls -d /lib/modules/*/build 2>/dev/null | head -n 1)"
-          if [ -n "$KDIR" ]; then
-            echo "Building against openSUSE kernel headers at $KDIR"
-            make modules KDIR="$KDIR"
-          else
-            echo "Kernel build directory not found, attempting default make modules"
-            make modules
+          # In openSUSE, kernel-default-devel creates /usr/src/linux-*-obj/x86_64/default
+          KDIR="$(ls -d /usr/src/linux*-obj/x86_64/default 2>/dev/null | head -n 1)"
+          if [ -z "$KDIR" ]; then
+            KDIR="$(ls -d /lib/modules/*-default/build 2>/dev/null | head -n 1)"
           fi
+          echo "Building kernel modules against $KDIR"
+          make modules KDIR="$KDIR"
 
       - name: Shell script syntax check
         run: |
@@ -64,7 +67,7 @@ jobs:
           python3 -m py_compile howdy/recorders/ir_libcamera_reader.py howdy/recorders/video_capture.py
 
   ubuntu-cross-check:
-    name: Ubuntu 24.04 Compatibility Check
+    name: Ubuntu 24.04 Tools & Script Check
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
@@ -74,7 +77,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            linux-headers-generic \
             g++ \
             make \
             meson \
@@ -87,7 +89,7 @@ jobs:
           make ir-grab
           ./tools/ir-grab/build/ir-grab --help
 
-      - name: Build kernel modules
+      - name: Shell & Python syntax check
         run: |
-          KDIR="$(ls -d /lib/modules/*/build 2>/dev/null | head -n 1)"
-          make modules KDIR="$KDIR"
+          bash -n install.sh uninstall.sh enable_polkit_howdy.sh disable_polkit_howdy.sh
+          python3 -m py_compile howdy/recorders/ir_libcamera_reader.py howdy/recorders/video_capture.py
