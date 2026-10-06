@@ -10,15 +10,17 @@ This repository enables:
 
 ---
 
-## 🛠️ Hardware Overview
+## 🛠️ Hardware Identification & Search Index
 
-| Component | Hardware Identifier | Linux Interface | Role |
-| :--- | :--- | :--- | :--- |
-| **RGB Camera** | OmniVision OV08A10 (`OVTI08A1:00`) | `i2c-1` @ `0x36`, IPU6 CSI2-1 (`/dev/video8`) | 8MP High-Resolution Color Webcam |
-| **IR Camera** | OmniVision OG0VA1B / OG0VE1B (`OVTI00AB:00`) | `i2c-4` @ `0x60`, IPU6 CSI2-2 (`/dev/video16`) | 640×480 Global-Shutter NIR Sensor |
-| **IR Illuminator** | Texas Instruments LM3643 (`TXNW3643:01`) | `i2c-4` @ `0x63`, sysfs class `leds` | 850/940 nm High-Power Flash/Torch LED |
-| **Power Controller** | Intel INT3472 Discrete (`INT3472:01`) | GPIO controller & ACPI regulator provider | Powers camera sensors & privacy shutter |
-| **Image Signal Processor** | Intel IPU6 ISYS (`8086:465d`) | MIPI CSI-2 receiver & capture DMA engine | Raw CSI-2 frame ingestion |
+| Component | Hardware / Device ID | ACPI / PCI String | Linux Bus / Interface | Details |
+| :--- | :--- | :--- | :--- | :--- |
+| **Laptop Model** | HP Product ID `8A05` | DMI: `HP Dragonfly Folio 13.5 inch G3 2-in-1 Notebook PC` | Platform | Intel Alder Lake-U15 |
+| **Image Processor** | `8086:465d` | PCI: `0000:00:05.0` (`intel_ipu6`) | PCI Express | Intel IPU6 ISYS MIPI CSI-2 |
+| **RGB Camera** | `OVTI08A1` | ACPI: `\_SB.PC00.LNK0` (`OVTI08A1:00`) | `i2c-1` @ `0x36` | OmniVision OV08A10 (Chip ID `0x560841`) |
+| **IR Camera** | `OVTI00AB` | ACPI: `\_SB.PC00.LNK1` (`OVTI00AB:00`) | `i2c-4` @ `0x60` | OmniVision OG0VA1B / OG0VE1B (Global Shutter NIR) |
+| **IR Flash Strobe**| `TXNW3643` | ACPI: `TXNW3643:01` (`leds-lm3643`) | `i2c-4` @ `0x63` | Texas Instruments LM3643 Dual IR Torch |
+| **Power Controller**| `INT3472` | ACPI: `INT3472:01` (`intel_skl_int3472_discrete`) | Platform | Power sequencing & clk provider |
+| **PCH GPIO** | `INTC1055` | ACPI: `INTC1055:00` (`INT3455:00`) | Memory mapped | Pin 173 (`avdd` rail), Pin 167 (privacy shutter) |
 
 ---
 
