@@ -89,6 +89,11 @@ After initial installation, a clean reboot is required to initialize the IPU6 fi
 sudo reboot
 ```
 
+### 3. Automatic Kernel Updates via Open Build Service (OBS)
+To survive kernel upgrades automatically without manual recompilation, this repository includes packaging recipes for the **Open Build Service (OBS)** using openSUSE's native **Kernel Module Package (KMP)** framework with weak-updates support.
+
+See [**`packaging/obs/README.md`**](packaging/obs/README.md) for full instructions.
+
 ---
 
 ## 🖥️ Desktop Camera Setup (PipeWire)
