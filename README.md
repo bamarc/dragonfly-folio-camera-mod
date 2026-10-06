@@ -1,4 +1,5 @@
 # HP Dragonfly Folio 13.5" G3 Linux Camera & IR Enablement
+[![build result](https://build.opensuse.org/projects/home:gmarc/packages/hp-dragonfly-folio-camera/badge.svg?type=default)](https://build.opensuse.org/package/show/home:gmarc/hp-dragonfly-folio-camera)
 
 Custom Linux kernel drivers, hardware fixes, and facial authentication tools for the **HP Dragonfly Folio 13.5" G3** (Intel 12th Gen Alder Lake-U15, Intel IPU6 MIPI-CSI2).
 
