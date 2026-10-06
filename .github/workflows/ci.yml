@@ -24,7 +24,13 @@ jobs:
             ninja \
             libcamera-devel \
             python3 \
-            bash
+            bash \
+            findutils \
+            coreutils \
+            kmod \
+            tar \
+            gzip \
+            gawk
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,10 +42,10 @@ jobs:
 
       - name: Build kernel modules
         run: |
-          # Detect installed kernel-devel directory
-          KDIR="$(find /lib/modules -maxdepth 2 -name build -print -quit)"
+          # In container, uname -r is host kernel; discover openSUSE installed build dir directly
+          KDIR="$(ls -d /lib/modules/*/build 2>/dev/null | head -n 1)"
           if [ -n "$KDIR" ]; then
-            echo "Building against kernel headers at $KDIR"
+            echo "Building against openSUSE kernel headers at $KDIR"
             make modules KDIR="$KDIR"
           else
             echo "Kernel build directory not found, attempting default make modules"
@@ -83,5 +89,5 @@ jobs:
 
       - name: Build kernel modules
         run: |
-          KDIR="$(find /lib/modules -maxdepth 2 -name build -print -quit)"
+          KDIR="$(ls -d /lib/modules/*/build 2>/dev/null | head -n 1)"
           make modules KDIR="$KDIR"
