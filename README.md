@@ -68,8 +68,8 @@ sudo apt install -y linux-headers-$(uname -r) g++ make meson ninja-build libcame
 Clone this repository and run the master installer:
 
 ```bash
-git clone https://github.com/your-username/hp-dragonfly-folio-g3-linux-camera.git
-cd hp-dragonfly-folio-g3-linux-camera
+git clone https://github.com/bamarc/dragonfly-folio-camera-mod.git
+cd dragonfly-folio-camera-mod
 sudo ./install.sh
 ```
 
@@ -156,6 +156,18 @@ sudo howdy -U $USER add
 ```bash
 # Test sudo authentication
 sudo -k && sudo echo "Authenticated by IR face!"
+```
+
+### 5. Enable Facial Auth for Polkit, 1Password & pkexec
+Modern systemd distributions isolate `polkit-agent-helper` inside a strict sandbox (`PrivateDevices=yes`) that cuts off camera hardware. To enable face unlock for 1Password, `pkexec`, and GUI elevation dialogs:
+
+```bash
+sudo ./enable_polkit_howdy.sh
+```
+This masks `polkit-agent-helper.socket`, causing the desktop Polkit agent to spawn the helper directly with hardware camera permissions. To revert back to password-only Polkit at any time, run:
+
+```bash
+sudo ./disable_polkit_howdy.sh
 ```
 
 ---
