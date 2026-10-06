@@ -2,7 +2,7 @@
 KERNELRELEASE ?= $(shell uname -r)
 KDIR ?= /lib/modules/$(KERNELRELEASE)/build
 
-MODULE_DIRS := drivers/int3472 drivers/ov08a10 drivers/og0va1b drivers/lm3643
+MODULE_DIRS := drivers/int3472 drivers/ov08a10 drivers/og0va1b drivers/lm3643 drivers/ipu-bridge
 
 .PHONY: all modules ir-grab clean
 

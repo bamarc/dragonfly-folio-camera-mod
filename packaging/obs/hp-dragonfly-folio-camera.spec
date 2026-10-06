@@ -59,7 +59,7 @@ for flavor in %{flavors_to_build}; do
     mkdir -p "obj/$flavor"
     cp -r drivers "obj/$flavor/"
     KSRC="%{kernel_source $flavor}"
-    for moddir in int3472 ov08a10 og0va1b lm3643; do
+    for moddir in int3472 ov08a10 og0va1b lm3643 ipu-bridge; do
         %make_build -C "$KSRC" M="$PWD/obj/$flavor/drivers/$moddir" modules
     done
 done
@@ -74,7 +74,7 @@ export INSTALL_MOD_PATH=%{buildroot}
 export INSTALL_MOD_DIR=%{kernel_module_package_moddir}
 for flavor in %{flavors_to_build}; do
     KSRC="%{kernel_source $flavor}"
-    for moddir in int3472 ov08a10 og0va1b lm3643; do
+    for moddir in int3472 ov08a10 og0va1b lm3643 ipu-bridge; do
         make -C "$KSRC" M="$PWD/obj/$flavor/drivers/$moddir" modules_install
     done
 done

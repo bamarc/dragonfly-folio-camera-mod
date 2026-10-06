@@ -15,6 +15,7 @@ rm -f "$UPDATES_DIR/intel_skl_int3472_discrete.ko"
 rm -f "$UPDATES_DIR/ov08a10.ko"
 rm -f "$UPDATES_DIR/og0ve1b.ko"
 rm -f "$UPDATES_DIR/leds-lm3643.ko"
+rm -f "$UPDATES_DIR/ipu-bridge.ko"
 depmod -a
 
 echo "=== 2. Removing Udev Rule ==="

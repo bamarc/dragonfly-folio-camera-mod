@@ -20,7 +20,7 @@ mkdir -p "$UPDATES_DIR"
 # Create a safety backup of existing module binaries if present
 BACKUP_DIR="${UPDATES_DIR}/.backup-$(date +%Y%m%d-%H%M%S)"
 HAS_EXISTING=0
-for mod in intel_skl_int3472_discrete.ko ov08a10.ko og0ve1b.ko leds-lm3643.ko; do
+for mod in intel_skl_int3472_discrete.ko ov08a10.ko og0ve1b.ko leds-lm3643.ko ipu-bridge.ko; do
     if [ -f "${UPDATES_DIR}/${mod}" ]; then
         if [ "$HAS_EXISTING" -eq 0 ]; then
             mkdir -p "$BACKUP_DIR"
@@ -37,6 +37,7 @@ cp "$SCRIPT_DIR/drivers/int3472/intel_skl_int3472_discrete.ko" "$UPDATES_DIR/"
 cp "$SCRIPT_DIR/drivers/ov08a10/ov08a10.ko" "$UPDATES_DIR/"
 cp "$SCRIPT_DIR/drivers/og0va1b/og0ve1b.ko" "$UPDATES_DIR/"
 cp "$SCRIPT_DIR/drivers/lm3643/leds-lm3643.ko" "$UPDATES_DIR/"
+cp "$SCRIPT_DIR/drivers/ipu-bridge/ipu-bridge.ko" "$UPDATES_DIR/"
 depmod -a
 echo "Modules installed and depmod updated."
 
