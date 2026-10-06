@@ -69,7 +69,17 @@ static int int3472_gpio_regulator_disable(struct regulator_dev *rdev)
 
 static int int3472_gpio_regulator_is_enabled(struct regulator_dev *rdev)
 {
-	return 1;
+	struct gpio_desc *gpio = rdev_get_drvdata(rdev);
+	int val;
+
+	if (!gpio)
+		return 0;
+
+	val = gpiod_get_value_cansleep(gpio);
+	if (val < 0)
+		return 1; /* Fallback if reading pin value is unsupported on locked ACPI pin */
+
+	return val;
 }
 
 static const struct regulator_ops int3472_gpio_regulator_ops = {

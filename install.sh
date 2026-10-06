@@ -16,6 +16,23 @@ make -C "$SCRIPT_DIR" modules
 
 echo "=== 2. Installing Kernel Modules to ${UPDATES_DIR} ==="
 mkdir -p "$UPDATES_DIR"
+
+# Create a safety backup of existing module binaries if present
+BACKUP_DIR="${UPDATES_DIR}/.backup-$(date +%Y%m%d-%H%M%S)"
+HAS_EXISTING=0
+for mod in intel_skl_int3472_discrete.ko ov08a10.ko og0ve1b.ko leds-lm3643.ko; do
+    if [ -f "${UPDATES_DIR}/${mod}" ]; then
+        if [ "$HAS_EXISTING" -eq 0 ]; then
+            mkdir -p "$BACKUP_DIR"
+            HAS_EXISTING=1
+        fi
+        cp -a "${UPDATES_DIR}/${mod}" "$BACKUP_DIR/"
+    fi
+done
+if [ "$HAS_EXISTING" -eq 1 ]; then
+    echo "Backed up existing modules to ${BACKUP_DIR}"
+fi
+
 cp "$SCRIPT_DIR/drivers/int3472/intel_skl_int3472_discrete.ko" "$UPDATES_DIR/"
 cp "$SCRIPT_DIR/drivers/ov08a10/ov08a10.ko" "$UPDATES_DIR/"
 cp "$SCRIPT_DIR/drivers/og0va1b/og0ve1b.ko" "$UPDATES_DIR/"
@@ -46,11 +63,19 @@ else
 fi
 
 echo "=== 5. Installing Howdy Recorder Plugins (Optional) ==="
-if [ -d /usr/lib64/howdy/recorders ]; then
-    cp "$SCRIPT_DIR/howdy/recorders/ir_libcamera_reader.py" /usr/lib64/howdy/recorders/
-    cp "$SCRIPT_DIR/howdy/recorders/video_capture.py" /usr/lib64/howdy/recorders/
-    chmod 0644 /usr/lib64/howdy/recorders/ir_libcamera_reader.py /usr/lib64/howdy/recorders/video_capture.py
-    echo "Installed Howdy plugins to /usr/lib64/howdy/recorders/"
+HOWDY_RECORDER_DIRS=(/usr/lib64/howdy/recorders /usr/lib/howdy/recorders)
+INSTALLED_HOWDY=0
+for rdir in "${HOWDY_RECORDER_DIRS[@]}"; do
+    if [ -d "$rdir" ]; then
+        cp "$SCRIPT_DIR/howdy/recorders/ir_libcamera_reader.py" "$rdir/"
+        cp "$SCRIPT_DIR/howdy/recorders/video_capture.py" "$rdir/"
+        chmod 0644 "$rdir/ir_libcamera_reader.py" "$rdir/video_capture.py"
+        echo "Installed Howdy plugins to $rdir"
+        INSTALLED_HOWDY=1
+    fi
+done
+if [ "$INSTALLED_HOWDY" -eq 0 ]; then
+    echo "Note: Howdy recorder directory not found. Skipped plugin installation."
 fi
 
 echo ""

@@ -11,6 +11,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <climits>
 #include <condition_variable>
 #include <csignal>
 #include <cstdint>
@@ -48,12 +49,12 @@
 using namespace libcamera;
 
 static std::atomic<bool> g_stop{false};
-static std::string g_torch_path = "/sys/class/leds/lm3643:torch/brightness";
+static char g_torch_path[PATH_MAX] = "/sys/class/leds/lm3643:torch/brightness";
 
 // Async-signal-safe torch turn-off helper
 static void emergency_torch_off() {
-    if (!g_torch_path.empty()) {
-        int fd = open(g_torch_path.c_str(), O_WRONLY);
+    if (g_torch_path[0] != '\0') {
+        int fd = open(g_torch_path, O_WRONLY);
         if (fd >= 0) {
             const char zero[] = "0\n";
             (void)write(fd, zero, sizeof(zero) - 1);
@@ -236,7 +237,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    g_torch_path = torch_path;
+    snprintf(g_torch_path, sizeof(g_torch_path), "%s", torch_path.c_str());
 
     // 1. Silence libcamera logging unless verbose
     if (!verbose) {
@@ -373,19 +374,27 @@ int main(int argc, char *argv[]) {
     constexpr size_t FRAME_SIZE = ROW_BYTES * FRAME_HEIGHT; // 614,400 bytes
 
     // Buffer allocation
-    FrameBufferAllocator *allocator = new FrameBufferAllocator(camera);
+    auto allocator = std::make_unique<FrameBufferAllocator>(camera);
     ret = allocator->allocate(stream);
     if (ret < 0) {
         if (verbose) std::cerr << "Failed to allocate buffers: " << ret << "\n";
-        delete allocator;
         camera->release();
         cm->stop();
         return 3;
     }
 
-    // Map memory buffers
+    // Map memory buffers with RAII unmapping
+    struct MappedPlanesGuard {
+        std::vector<std::pair<void *, size_t>> planes;
+        ~MappedPlanesGuard() {
+            for (auto &p : planes) {
+                if (p.first && p.first != MAP_FAILED)
+                    munmap(p.first, p.second);
+            }
+        }
+    } mapped_planes;
+
     std::map<FrameBuffer *, void *> mapped_buffers;
-    std::vector<std::pair<void *, size_t>> mapped_planes;
     for (const std::unique_ptr<FrameBuffer> &buffer : allocator->buffers(stream)) {
         if (buffer->planes().empty()) continue;
         const FrameBuffer::Plane &plane = buffer->planes()[0];
@@ -395,12 +404,11 @@ int main(int argc, char *argv[]) {
             continue;
         }
         mapped_buffers[buffer.get()] = mem;
-        mapped_planes.emplace_back(mem, plane.length);
+        mapped_planes.planes.emplace_back(mem, plane.length);
     }
 
     if (mapped_buffers.empty()) {
         if (verbose) std::cerr << "No mapped buffers available\n";
-        delete allocator;
         camera->release();
         cm->stop();
         return 3;
@@ -420,8 +428,6 @@ int main(int argc, char *argv[]) {
     ret = camera->start();
     if (ret < 0) {
         if (verbose) std::cerr << "Camera::start() failed: " << ret << "\n";
-        for (auto &p : mapped_planes) munmap(p.first, p.second);
-        delete allocator;
         camera->release();
         cm->stop();
         return 3;
@@ -466,30 +472,33 @@ int main(int argc, char *argv[]) {
         }
 
         if (req->status() == Request::RequestComplete) {
-            FrameBuffer *fb = req->buffers().at(stream);
-            auto it = mapped_buffers.find(fb);
-            if (it != mapped_buffers.end()) {
-                const uint8_t *src = static_cast<const uint8_t *>(it->second);
-                bool ok = false;
-                if (stride == ROW_BYTES) {
-                    ok = write_all(STDOUT_FILENO, src, FRAME_SIZE);
-                } else {
-                    for (size_t r = 0; r < FRAME_HEIGHT; ++r) {
-                        memcpy(&pack_buf[r * ROW_BYTES], src + (r * stride), ROW_BYTES);
+            auto buf_it = req->buffers().find(stream);
+            if (buf_it != req->buffers().end()) {
+                FrameBuffer *fb = buf_it->second;
+                auto it = mapped_buffers.find(fb);
+                if (it != mapped_buffers.end()) {
+                    const uint8_t *src = static_cast<const uint8_t *>(it->second);
+                    bool ok = false;
+                    if (stride == ROW_BYTES) {
+                        ok = write_all(STDOUT_FILENO, src, FRAME_SIZE);
+                    } else {
+                        for (size_t r = 0; r < FRAME_HEIGHT; ++r) {
+                            memcpy(&pack_buf[r * ROW_BYTES], src + (r * stride), ROW_BYTES);
+                        }
+                        ok = write_all(STDOUT_FILENO, pack_buf.data(), FRAME_SIZE);
                     }
-                    ok = write_all(STDOUT_FILENO, pack_buf.data(), FRAME_SIZE);
-                }
 
-                if (!ok) {
-                    // Pipe closed or write error (e.g. EPIPE)
-                    g_stop.store(true);
-                    break;
-                }
+                    if (!ok) {
+                        // Pipe closed or write error (e.g. EPIPE)
+                        g_stop.store(true);
+                        break;
+                    }
 
-                frames_sent++;
-                if (max_frames > 0 && frames_sent >= max_frames) {
-                    g_stop.store(true);
-                    break;
+                    frames_sent++;
+                    if (max_frames > 0 && frames_sent >= max_frames) {
+                        g_stop.store(true);
+                        break;
+                    }
                 }
             }
         }
@@ -501,13 +510,8 @@ int main(int argc, char *argv[]) {
     // Teardown camera cleanly
     camera->stop();
     requests.clear();
-
-    for (auto &p : mapped_planes) {
-        munmap(p.first, p.second);
-    }
     mapped_buffers.clear();
 
-    delete allocator;
     camera->release();
     camera.reset();
     cm->stop();

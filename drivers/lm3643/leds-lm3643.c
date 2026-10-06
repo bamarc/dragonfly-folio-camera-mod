@@ -159,8 +159,14 @@ static int lm3643_probe(struct i2c_client *client)
 	}
 
 	/* Wake parent I2C host adapter before probe communication */
-	if (host_dev)
-		pm_runtime_get_sync(host_dev);
+	if (host_dev) {
+		ret = pm_runtime_get_sync(host_dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(host_dev);
+			dev_err(dev, "Failed to wake I2C host: %d\n", ret);
+			return ret;
+		}
+	}
 
 	/* Verify communication by reading Device ID register */
 	ret = regmap_read(chip->regmap, LM3643_REG_DEV_ID, &dev_id);
@@ -196,8 +202,19 @@ static int lm3643_probe(struct i2c_client *client)
 static void lm3643_remove(struct i2c_client *client)
 {
 	struct lm3643_chip *chip = i2c_get_clientdata(client);
+	struct device *host_dev = client->adapter->dev.parent;
+
+	if (host_dev) {
+		int ret = pm_runtime_get_sync(host_dev);
+		if (ret < 0)
+			pm_runtime_put_noidle(host_dev);
+	}
 
 	regmap_write(chip->regmap, LM3643_REG_ENABLE, LM3643_MODE_STANDBY);
+
+	if (host_dev)
+		pm_runtime_put(host_dev);
+
 	if (chip->enable_gpio)
 		gpiod_set_value_cansleep(chip->enable_gpio, 0);
 }

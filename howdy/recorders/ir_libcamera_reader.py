@@ -11,7 +11,12 @@ import time
 import cv2
 import numpy as np
 from cv2 import CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH
-from i18n import _
+
+try:
+	from i18n import _
+except ImportError:
+	def _(text):
+		return text
 
 FRAME_WIDTH = 640
 FRAME_HEIGHT = 480
@@ -58,6 +63,7 @@ class ir_libcamera_reader:
 		self.proc = None
 		self.width = FRAME_WIDTH
 		self.height = FRAME_HEIGHT
+		self._atexit_registered = False
 		self._start_ir_grab()
 
 	def _start_ir_grab(self):
@@ -84,7 +90,9 @@ class ir_libcamera_reader:
 				stderr=subprocess.DEVNULL,
 				bufsize=0
 			)
-			atexit.register(self.release)
+			if not self._atexit_registered:
+				atexit.register(self.release)
+				self._atexit_registered = True
 		except Exception as e:
 			print(_("Failed to start ir-grab: %s") % str(e), file=sys.stderr)
 			self.proc = None
@@ -171,6 +179,13 @@ class ir_libcamera_reader:
 				except Exception:
 					pass
 			self.proc = None
+
+		if getattr(self, "_atexit_registered", False):
+			try:
+				atexit.unregister(self.release)
+			except Exception:
+				pass
+			self._atexit_registered = False
 
 		# Fallback torch turn off
 		if self.torch_path and os.path.exists(self.torch_path):

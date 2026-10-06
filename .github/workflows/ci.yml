@@ -1,0 +1,87 @@
+name: CI Build & Sanity Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  opensuse-build:
+    name: openSUSE Tumbleweed Build & Test
+    runs-on: ubuntu-latest
+    container:
+      image: registry.opensuse.org/opensuse/tumbleweed:latest
+    steps:
+      - name: Install dependencies
+        run: |
+          zypper --non-interactive refresh
+          zypper --non-interactive install -y \
+            kernel-devel \
+            gcc-c++ \
+            make \
+            meson \
+            ninja \
+            libcamera-devel \
+            python3 \
+            bash
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build tools/ir-grab
+        run: |
+          make ir-grab
+          ./tools/ir-grab/build/ir-grab --help
+
+      - name: Build kernel modules
+        run: |
+          # Detect installed kernel-devel directory
+          KDIR="$(find /lib/modules -maxdepth 2 -name build -print -quit)"
+          if [ -n "$KDIR" ]; then
+            echo "Building against kernel headers at $KDIR"
+            make modules KDIR="$KDIR"
+          else
+            echo "Kernel build directory not found, attempting default make modules"
+            make modules
+          fi
+
+      - name: Shell script syntax check
+        run: |
+          bash -n install.sh
+          bash -n uninstall.sh
+          bash -n enable_polkit_howdy.sh
+          bash -n disable_polkit_howdy.sh
+
+      - name: Python recorder syntax check
+        run: |
+          python3 -m py_compile howdy/recorders/ir_libcamera_reader.py howdy/recorders/video_capture.py
+
+  ubuntu-cross-check:
+    name: Ubuntu 24.04 Compatibility Check
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            linux-headers-generic \
+            g++ \
+            make \
+            meson \
+            ninja-build \
+            libcamera-dev \
+            python3
+
+      - name: Build ir-grab
+        run: |
+          make ir-grab
+          ./tools/ir-grab/build/ir-grab --help
+
+      - name: Build kernel modules
+        run: |
+          KDIR="$(find /lib/modules -maxdepth 2 -name build -print -quit)"
+          make modules KDIR="$KDIR"
