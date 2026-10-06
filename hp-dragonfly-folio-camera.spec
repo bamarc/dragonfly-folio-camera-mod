@@ -22,6 +22,7 @@ Summary:        Linux camera drivers and IR tools for HP Dragonfly Folio 13.5-in
 License:        GPL-2.0-only
 Group:          Hardware/Camera
 URL:            https://github.com/bamarc/dragonfly-folio-camera-mod
+ExclusiveArch:  x86_64
 Source0:        preamble
 BuildRequires:  %{kernel_module_package_buildreqs}
 BuildRequires:  gcc-c++
