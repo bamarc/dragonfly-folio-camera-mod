@@ -194,3 +194,15 @@ sudo reboot
 
 ## 📄 License
 This project is licensed under the **GNU General Public License v2.0** (GPL-2.0). See [LICENSE](LICENSE) for details.
+
+---
+
+## 🙏 Acknowledgments & Upstream Credits
+
+This project builds upon, modifies, and integrates work from the upstream Linux kernel community and open-source projects:
+
+* **Intel Corporation**: For the original `ov08a10` sensor driver (`drivers/media/i2c/ov08a10.c`) and IPU6 camera subsystem architecture.
+* **Dan Scally**: For authoring the foundational `intel-skl-int3472` discrete power sequencing driver (`drivers/platform/x86/intel/int3472/`).
+* **Linaro Ltd**: For the `og0ve1b` Linux V4L2 sensor driver foundation.
+* **libcamera Project**: For modern Linux camera capture APIs, ISP pipelines, and software debayering infrastructure.
+* **Boltgolt & Howdy Contributors**: For the Linux facial authentication system.
