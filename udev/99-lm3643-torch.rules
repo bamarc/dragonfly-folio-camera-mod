@@ -1,0 +1,4 @@
+# Grant video group write access to LM3643 IR torch brightness
+ACTION=="add|change", SUBSYSTEM=="leds", KERNEL=="lm3643:torch", \
+  RUN+="/usr/bin/chgrp video /sys%p/brightness", \
+  RUN+="/usr/bin/chmod g+w /sys%p/brightness"

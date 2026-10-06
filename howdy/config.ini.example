@@ -1,0 +1,28 @@
+# /etc/howdy/config.ini configuration snippet for HP Dragonfly Folio G3 IR Camera
+#
+# Paste these settings into your /etc/howdy/config.ini under the [video] section:
+
+[video]
+# Use the high-performance native libcamera IR streamer
+recording_plugin = ir_libcamera
+ir_grab_path = /usr/libexec/howdy/ir-grab
+ir_camera = \_SB_.PC00.LNK1
+
+# Sensor gain and exposure (calibrated for high contrast in low/zero light)
+ir_gain = 128
+ir_exposure = 2000
+ir_black_level = 64
+ir_normalize = percentile
+ir_clahe = false
+
+# LM3643 IR Strobe LED control
+flash_path = /sys/class/leds/lm3643:torch/brightness
+flash_brightness = 60
+
+# Authentication timeout and darkness threshold
+timeout = 10
+dark_threshold = 85
+certainty = 3.5
+
+# Disable old OpenCV / GStreamer pipeline
+# device_path = libcamerasrc ...

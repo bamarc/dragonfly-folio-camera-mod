@@ -1,0 +1,23 @@
+# Kernel build artifacts
+*.ko
+*.o
+*.mod
+*.mod.c
+*.mod.o
+*.order
+modules.order
+Module.symvers
+.*.cmd
+**/*.cmd
+*.o.cmd
+.tmp_versions/
+
+# Tools build artifacts
+tools/ir-grab/build/
+build/
+
+# Binary dumps and temporary test captures
+*.raw
+*.pgm
+*.png
+*.jpg
