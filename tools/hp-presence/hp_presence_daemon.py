@@ -6,11 +6,13 @@
 # Provides a native KDE Plasma System Tray StatusNotifierItem applet with click toggle.
 
 import configparser
+import fcntl
 import glob
 import os
 import select
 import signal
 import struct
+import subprocess
 import sys
 import time
 
@@ -106,6 +108,12 @@ class HpPresenceDaemon(dbus.service.Object):
 		if not self.is_locked:
 			self.away_since = None
 			self.wake_attempted = False
+		else:
+			# If user was already seated at the moment of locking, do not false-trigger
+			if self.is_present and (self.current_distance_cm <= self.approach_dist_cm):
+				self.wake_attempted = True
+			else:
+				self.wake_attempted = False
 		self._update_tray()
 
 	def _open_sensor(self):
@@ -209,13 +217,83 @@ class HpPresenceDaemon(dbus.service.Object):
 		os.system("loginctl lock-session")
 
 	def _wake_session(self):
+		print("[HP Presence] Triggering multi-tier display wake (uinput virtual key, DPMS on, PowerManagement)...")
+		# 1. Simulate hardware-level keypress via /dev/uinput
+		# This reliably wakes KWin Wayland, turns on display, and prompts kscreenlocker_greet to start PAM/Howdy
+		self._simulate_uinput_wake()
+
+		# 2. Force DPMS on via kscreen-doctor (Wayland display power management)
+		try:
+			subprocess.run(["kscreen-doctor", "--dpms", "on"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+		except Exception as e:
+			print(f"[HP Presence] kscreen-doctor notice: {e}", file=sys.stderr)
+
+		# 3. Wake PowerDevil (KDE Power Management)
+		try:
+			pm_obj = self.bus.get_object("org.kde.Solid.PowerManagement", "/org/kde/Solid/PowerManagement")
+			pm_iface = dbus.Interface(pm_obj, "org.kde.Solid.PowerManagement")
+			pm_iface.wakeup()
+		except Exception as e:
+			print(f"[HP Presence] PowerManagement wakeup notice: {e}", file=sys.stderr)
+
+		# 4. Simulate user activity on FreeDesktop ScreenSaver
 		if self.ss_iface:
 			try:
 				self.ss_iface.SimulateUserActivity()
-				return
 			except Exception:
 				pass
-		os.system("loginctl activate-session 2>/dev/null")
+
+		# 5. Activate logind session
+		os.system("loginctl activate 1 2>/dev/null || loginctl activate-session 2>/dev/null")
+
+	def _simulate_uinput_wake(self):
+		if not os.path.exists("/dev/uinput") or not os.access("/dev/uinput", os.W_OK):
+			return
+
+		UI_SET_EVBIT = 0x40045564
+		UI_SET_KEYBIT = 0x40045565
+		UI_DEV_SETUP = 0x405c5503
+		UI_DEV_CREATE = 0x5501
+		UI_DEV_DESTROY = 0x5502
+
+		EV_SYN = 0x00
+		EV_KEY = 0x01
+		SYN_REPORT = 0x00
+		KEY_WAKEUP = 143
+		KEY_LEFTSHIFT = 42
+
+		try:
+			fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
+			try:
+				fcntl.ioctl(fd, UI_SET_EVBIT, EV_KEY)
+				fcntl.ioctl(fd, UI_SET_KEYBIT, KEY_WAKEUP)
+				fcntl.ioctl(fd, UI_SET_KEYBIT, KEY_LEFTSHIFT)
+
+				setup_data = struct.pack("<HHHH80sI", 3, 0x0001, 0x0001, 1, b"HP Presence Wake Device\x00", 0)
+				fcntl.ioctl(fd, UI_DEV_SETUP, setup_data)
+				fcntl.ioctl(fd, UI_DEV_CREATE)
+
+				time.sleep(0.04)
+
+				def send_key(code, val):
+					ev = struct.pack("<qqHHi", 0, 0, EV_KEY, code, val)
+					syn = struct.pack("<qqHHi", 0, 0, EV_SYN, SYN_REPORT, 0)
+					os.write(fd, ev + syn)
+
+				# Dispatch wakeup and a shift-key tap to prompt kscreenlocker
+				send_key(KEY_WAKEUP, 1)
+				send_key(KEY_WAKEUP, 0)
+				send_key(KEY_LEFTSHIFT, 1)
+				time.sleep(0.02)
+				send_key(KEY_LEFTSHIFT, 0)
+
+				time.sleep(0.04)
+				fcntl.ioctl(fd, UI_DEV_DESTROY)
+			finally:
+				os.close(fd)
+			print("[HP Presence] Successfully dispatched virtual wake keypress.")
+		except Exception as e:
+			print(f"[HP Presence] Virtual wake keypress warning: {e}", file=sys.stderr)
 
 	def toggle(self):
 		self.enabled = not self.enabled
