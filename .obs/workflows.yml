@@ -1,0 +1,26 @@
+workflow:
+  steps:
+    - trigger_services:
+        project: home:gmarc
+        package: hp-dragonfly-folio-camera
+        filters:
+          event: push
+          branches:
+            only:
+              - main
+    - trigger_services:
+        project: home:gmarc
+        package: hp-dragonfly-folio-howdy
+        filters:
+          event: push
+          branches:
+            only:
+              - main
+    - trigger_services:
+        project: home:gmarc
+        package: hp-presence
+        filters:
+          event: push
+          branches:
+            only:
+              - main
