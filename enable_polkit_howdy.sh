@@ -31,6 +31,11 @@ chmod 0644 /etc/pam.d/polkit-1
 
 echo "=== 3. Ensuring root.dat symlink exists for pkexec ==="
 TARGET_USER="${SUDO_USER:-$(logname 2>/dev/null || echo "$USER")}"
+if [[ ! "$TARGET_USER" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    echo "Error: Invalid username '$TARGET_USER'" >&2
+    exit 1
+fi
+
 if [ "$TARGET_USER" = "root" ]; then
     # If run in pure root shell, pick first available non-root user model
     DETECTED_MODEL="$(find /etc/howdy/models -maxdepth 1 -name '*.dat' ! -name 'root.dat' 2>/dev/null | head -n 1)"

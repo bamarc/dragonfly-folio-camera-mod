@@ -69,8 +69,17 @@ static void signal_handler(int sig) {
     emergency_torch_off();
 }
 
-static bool set_torch_brightness(const std::string &path, int level) {
+// Security check: ensure torch path is strictly inside /sys/ and contains no path traversal (..)
+// to prevent arbitrary file write/truncation vulnerabilities when running elevated.
+static bool is_safe_torch_path(const std::string &path) {
     if (path.empty()) return false;
+    if (path.find("..") != std::string::npos) return false;
+    if (path.rfind("/sys/", 0) != 0) return false;
+    return true;
+}
+
+static bool set_torch_brightness(const std::string &path, int level) {
+    if (!is_safe_torch_path(path)) return false;
     int fd = open(path.c_str(), O_WRONLY);
     if (fd < 0) return false;
     std::string val = std::to_string(level) + "\n";
@@ -237,7 +246,11 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    snprintf(g_torch_path, sizeof(g_torch_path), "%s", torch_path.c_str());
+    if (is_safe_torch_path(torch_path)) {
+        snprintf(g_torch_path, sizeof(g_torch_path), "%s", torch_path.c_str());
+    } else {
+        g_torch_path[0] = '\0';
+    }
 
     // 1. Silence libcamera logging unless verbose
     if (!verbose) {

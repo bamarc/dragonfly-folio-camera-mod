@@ -187,8 +187,8 @@ class ir_libcamera_reader:
 				pass
 			self._atexit_registered = False
 
-		# Fallback torch turn off
-		if self.torch_path and os.path.exists(self.torch_path):
+		# Fallback torch turn off - validate path starts with /sys/ and contains no path traversal
+		if self.torch_path and self.torch_path.startswith("/sys/") and ".." not in self.torch_path and os.path.exists(self.torch_path):
 			try:
 				with open(self.torch_path, "w") as f:
 					f.write("0\n")
