@@ -16,7 +16,7 @@
 #
 
 Name:           hp-folio-daemon
-Version:        0.1.0
+Version:        0.1.1
 Release:        0
 Summary:        Hinge and display mode switch daemon for HP Dragonfly Folio 13.5" G3
 License:        GPL-2.0-only

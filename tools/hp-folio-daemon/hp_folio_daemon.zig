@@ -151,12 +151,12 @@ pub fn classify(qx: f64, qy: f64, qz: f64, qw: f64) FolioState {
     // Screen is pulled forward and folded down flat over keyboard and touchpad.
     // Screen normal points directly UP (normal_z >= 0.85), normal_y is near zero (-0.15 <= normal_y <= 0.25),
     // and hinge twist qx is small (|qx| < 0.20).
-    // This relies directly on the physical surface normal vector, which is completely invariant to sensor yaw flips.
+    // Physical keyboard and touchpad remain active as requested.
     if (normal_z >= 0.85 and normal_y >= -0.15 and normal_y <= 0.25 and @abs(qx) < 0.20) {
         mode = .Tablet;
         tablet_switch = 1;
-        kbd_inhibit = true;
-        touchpad_inhibit = true;
+        kbd_inhibit = false;
+        touchpad_inhibit = false;
     }
     // 2. Stage / Media Mode:
     // Screen pulled forward into magnetic notch above touchpad.
@@ -164,8 +164,8 @@ pub fn classify(qx: f64, qy: f64, qz: f64, qw: f64) FolioState {
     else if (normal_y > 0.70 and normal_z >= 0.45 and normal_z <= 0.65) {
         mode = .Stage;
         tablet_switch = 1;
-        kbd_inhibit = true;
-        touchpad_inhibit = false; // Touchpad exposed!
+        kbd_inhibit = false;
+        touchpad_inhibit = false;
     }
     // 3. Normal Laptop (Clamshell) Mode:
     // Screen hinged at the back. Covers upright view (normal_z < 0.45) AND
@@ -447,8 +447,8 @@ pub fn main() !void {
                         std.debug.print("[HP Folio] >>> Switched to {s} Mode <<< (SW_TABLET_MODE={d})\n", .{ @tagName(current_mode), sample.tablet_switch });
 
                         switch (current_mode) {
-                            .Laptop => notifyKdeOsd("computer", "Laptop Mode — Keyboard Enabled"),
-                            .Stage => notifyKdeOsd("input-tablet", "Stage Mode — Keyboard Disabled"),
+                            .Laptop => notifyKdeOsd("computer", "Laptop Mode"),
+                            .Stage => notifyKdeOsd("input-tablet", "Stage Mode"),
                             .Tablet => notifyKdeOsd("input-tablet", "Tablet Mode — Auto-Rotation Active"),
                         }
                     }
