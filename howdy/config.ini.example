@@ -26,3 +26,18 @@ certainty = 3.5
 
 # Disable old OpenCV / GStreamer pipeline
 # device_path = libcamerasrc ...
+
+[tof_antispoof]
+# Enable ST VL53L5 8x8 ToF 3D depth and presence verification before face matching
+# Prevents spoofing using printed photos, tablet screens, or phones
+enabled = true
+# Seated envelope: only authenticate when person is between min and max cm
+min_distance_cm = 30
+max_distance_cm = 85
+# Minimum 3D depth curvature standard deviation in cm across valid face zones
+# Flat surfaces (photos/screens) have < 1.0 cm variance; real human heads have >= 2.0 cm
+min_depth_variance_cm = 1.8
+# Require Intel ISH Biometric Presence flag (1 = detected)
+require_presence = true
+# Display anti-spoof warning in terminal when triggered
+warn_on_fail = true

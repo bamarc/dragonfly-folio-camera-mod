@@ -34,6 +34,7 @@ BuildRequires:  ninja
 BuildRequires:  pkgconfig
 BuildRequires:  pkgconfig(udev)
 BuildRequires:  zstd
+Recommends:     hp-presence
 
 %kernel_module_package -p %{SOURCE0}
 
@@ -85,8 +86,9 @@ install -D -m 0755 tools/ir-grab/build/ir-grab %{buildroot}%{_libexecdir}/howdy/
 # Install udev rule for IR strobe
 install -D -m 0644 udev/99-lm3643-torch.rules %{buildroot}%{_udevrulesdir}/99-lm3643-torch.rules
 
-# Install Howdy recorder plugins
+# Install Howdy recorder plugins & 3D anti-spoofing
 install -D -m 0644 howdy/recorders/ir_libcamera_reader.py %{buildroot}%{_prefix}/lib64/howdy/recorders/ir_libcamera_reader.py
+install -D -m 0644 howdy/recorders/tof_verifier.py %{buildroot}%{_prefix}/lib64/howdy/recorders/tof_verifier.py
 install -D -m 0644 howdy/recorders/video_capture.py %{buildroot}%{_prefix}/lib64/howdy/recorders/video_capture.py
 
 # Install Polkit helper scripts
@@ -102,8 +104,10 @@ install -D -m 0755 disable_polkit_howdy.sh %{buildroot}%{_sbindir}/disable_polki
 %dir %{_prefix}/lib64/howdy
 %dir %{_prefix}/lib64/howdy/recorders
 %{_prefix}/lib64/howdy/recorders/ir_libcamera_reader.py
+%{_prefix}/lib64/howdy/recorders/tof_verifier.py
 %{_prefix}/lib64/howdy/recorders/video_capture.py
 %{_sbindir}/enable_polkit_howdy.sh
 %{_sbindir}/disable_polkit_howdy.sh
 
 %changelog
+

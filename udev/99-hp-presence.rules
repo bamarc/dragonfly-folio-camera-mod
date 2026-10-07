@@ -1,0 +1,8 @@
+# HP Dragonfly Folio G3 - Intel ISH Presence & ToF Sensor Rules
+# Grant group video read/write access to ISH hidraw nodes (VL53L5 ToF, Biometric Presence, Lattice AI)
+SUBSYSTEM=="hidraw", KERNELS=="*8087:0AC*", GROUP="video", MODE="0660"
+
+# Grant group video permission to toggle enable_sensor in sysfs
+ACTION=="add|change", SUBSYSTEM=="platform", KERNEL=="HID-SENSOR-2000e1.*", \
+  RUN+="/usr/bin/chgrp video /sys%p/enable_sensor", \
+  RUN+="/usr/bin/chmod g+w /sys%p/enable_sensor"

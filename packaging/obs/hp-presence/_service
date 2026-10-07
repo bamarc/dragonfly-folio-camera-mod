@@ -1,0 +1,14 @@
+<services>
+  <service name="obs_scm">
+    <param name="url">https://github.com/bamarc/dragonfly-folio-camera-mod.git</param>
+    <param name="scm">git</param>
+    <param name="versionformat">%cd.%h</param>
+    <param name="revision">main</param>
+  </service>
+  <service name="tar" mode="buildtime"/>
+  <service name="recompress" mode="buildtime">
+    <param name="compression">zst</param>
+    <param name="file">*.tar</param>
+  </service>
+  <service name="set_version" mode="buildtime"/>
+</services>

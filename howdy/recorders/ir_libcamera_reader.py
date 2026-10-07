@@ -13,6 +13,14 @@ import numpy as np
 from cv2 import CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH
 
 try:
+	from .tof_verifier import TofVerifier
+except ImportError:
+	try:
+		from tof_verifier import TofVerifier
+	except ImportError:
+		TofVerifier = None
+
+try:
 	from i18n import _
 except ImportError:
 	def _(text):
@@ -64,9 +72,21 @@ class ir_libcamera_reader:
 		self.width = FRAME_WIDTH
 		self.height = FRAME_HEIGHT
 		self._atexit_registered = False
+
+		if TofVerifier is not None:
+			self.tof_verifier = TofVerifier(self.config)
+		else:
+			self.tof_verifier = None
+
 		self._start_ir_grab()
 
 	def _start_ir_grab(self):
+		if self.tof_verifier is not None and self.tof_verifier.enabled:
+			passed, reason, _ = self.tof_verifier.verify()
+			if not passed:
+				# 3D Anti-spoofing rejected the attempt
+				return
+
 		if not os.path.exists(self.ir_grab_bin):
 			print(_("ir-grab binary not found at %s") % self.ir_grab_bin, file=sys.stderr)
 			return

@@ -41,10 +41,13 @@ cp "$SCRIPT_DIR/drivers/ipu-bridge/ipu-bridge.ko" "$UPDATES_DIR/"
 depmod -a
 echo "Modules installed and depmod updated."
 
-echo "=== 3. Installing Udev Rule for LM3643 Strobe ==="
+echo "=== 3. Installing Udev Rules for Strobe & Presence Sensors ==="
 cp "$SCRIPT_DIR/udev/99-lm3643-torch.rules" /etc/udev/rules.d/
+cp "$SCRIPT_DIR/udev/99-hp-presence.rules" /etc/udev/rules.d/
 udevadm control --reload
 udevadm trigger -s leds -c change
+udevadm trigger --subsystem-match=hidraw
+udevadm trigger --subsystem-match=platform
 if [ -f /sys/class/leds/lm3643:torch/brightness ]; then
     chgrp video /sys/class/leds/lm3643:torch/brightness || true
     chmod 0664 /sys/class/leds/lm3643:torch/brightness || true
@@ -63,14 +66,15 @@ else
     echo "Install meson, ninja, and libcamera-devel to build ir-grab."
 fi
 
-echo "=== 5. Installing Howdy Recorder Plugins (Optional) ==="
+echo "=== 5. Installing Howdy Recorder Plugins & 3D Anti-Spoofing ==="
 HOWDY_RECORDER_DIRS=(/usr/lib64/howdy/recorders /usr/lib/howdy/recorders)
 INSTALLED_HOWDY=0
 for rdir in "${HOWDY_RECORDER_DIRS[@]}"; do
     if [ -d "$rdir" ]; then
         cp "$SCRIPT_DIR/howdy/recorders/ir_libcamera_reader.py" "$rdir/"
+        cp "$SCRIPT_DIR/howdy/recorders/tof_verifier.py" "$rdir/"
         cp "$SCRIPT_DIR/howdy/recorders/video_capture.py" "$rdir/"
-        chmod 0644 "$rdir/ir_libcamera_reader.py" "$rdir/video_capture.py"
+        chmod 0644 "$rdir/ir_libcamera_reader.py" "$rdir/tof_verifier.py" "$rdir/video_capture.py"
         echo "Installed Howdy plugins to $rdir"
         INSTALLED_HOWDY=1
     fi
@@ -79,6 +83,26 @@ if [ "$INSTALLED_HOWDY" -eq 0 ]; then
     echo "Note: Howdy recorder directory not found. Skipped plugin installation."
 fi
 
+echo "=== 6. Installing HP Presence Daemon & User Service ==="
+mkdir -p /usr/libexec/hp-presence
+cp "$SCRIPT_DIR/tools/hp-presence/hp_presence_daemon.py" /usr/libexec/hp-presence/hp_presence_daemon.py
+chmod 0755 /usr/libexec/hp-presence/hp_presence_daemon.py
+chown root:root /usr/libexec/hp-presence/hp_presence_daemon.py
+
+mkdir -p /usr/lib/systemd/user
+cp "$SCRIPT_DIR/tools/hp-presence/hp-presence.service" /usr/lib/systemd/user/hp-presence.service
+chmod 0644 /usr/lib/systemd/user/hp-presence.service
+
+if [ -n "$SUDO_USER" ]; then
+    USER_ID="$(id -u "$SUDO_USER")"
+    if [ -d "/run/user/${USER_ID}" ]; then
+        sudo -u "$SUDO_USER" XDG_RUNTIME_DIR="/run/user/${USER_ID}" systemctl --user daemon-reload || true
+        sudo -u "$SUDO_USER" XDG_RUNTIME_DIR="/run/user/${USER_ID}" systemctl --user enable hp-presence.service || true
+        echo "Enabled hp-presence.service for user $SUDO_USER"
+    fi
+fi
+
 echo ""
 echo "=== Installation Completed Successfully! ==="
 echo "If this is the first time installing, a reboot is recommended to bind all drivers cleanly."
+

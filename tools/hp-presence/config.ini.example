@@ -1,0 +1,18 @@
+# HP Dragonfly Folio G3 Human Presence & Walk-Away Auto-Lock Configuration
+# Installed to ~/.config/hp-presence/config.ini or /etc/hp-presence/config.ini
+
+[presence]
+# Enable walk-away auto-lock service (true / false)
+enabled = true
+
+# Time in seconds of absent user before automatically locking the desktop session
+away_timeout_sec = 10.0
+
+# Distance in cm to trigger display wake / activity simulation when approaching
+approach_distance_cm = 80.0
+
+# Maximum distance in cm before user is considered "away"
+max_distance_cm = 110.0
+
+# Enable KDE Plasma StatusNotifierItem tray widget
+enable_tray = true

@@ -21,3 +21,13 @@ build/
 *.pgm
 *.png
 *.jpg
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Packages and local RPM builds
+*.rpm
+dist/
+packaging/rpms/
+

@@ -18,12 +18,16 @@ rm -f "$UPDATES_DIR/leds-lm3643.ko"
 rm -f "$UPDATES_DIR/ipu-bridge.ko"
 depmod -a
 
-echo "=== 2. Removing Udev Rule ==="
+echo "=== 2. Removing Udev Rules ==="
 rm -f /etc/udev/rules.d/99-lm3643-torch.rules
+rm -f /etc/udev/rules.d/99-hp-presence.rules
 udevadm control --reload
 
-echo "=== 3. Removing ir-grab ==="
+echo "=== 3. Removing ir-grab & Presence Daemon ==="
 rm -f /usr/libexec/howdy/ir-grab
+rm -rf /usr/libexec/hp-presence
+rm -f /usr/lib/systemd/user/hp-presence.service
+rm -f /usr/lib64/howdy/recorders/tof_verifier.py /usr/lib/howdy/recorders/tof_verifier.py 2>/dev/null || true
 
 echo "=== Uninstallation Complete ==="
 echo "Stock vendor modules will be restored on next probe or reboot."

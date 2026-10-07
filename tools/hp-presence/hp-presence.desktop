@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=HP Presence & Walk-Away Lock
+Comment=Human presence detection and walk-away auto-lock status indicator
+Exec=/usr/libexec/hp-presence/hp_presence_daemon.py
+Icon=user-available
+Terminal=false
+Categories=Utility;HardwareSettings;
+StartupNotify=false
+X-KDE-autostart-phase=2

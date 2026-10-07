@@ -1,95 +1,106 @@
-# Open Build Service (OBS) KMP Packaging
+# Open Build Service (OBS) & RPM Packaging
 
-This directory contains the packaging files to build official **openSUSE Kernel Module Packages (KMP)** on the [Open Build Service (OBS)](https://build.opensuse.org/).
-
----
-
-## 💡 How KMP Packages Survive Kernel Updates
-
-In openSUSE, kernel modules packaged via `%kernel_module_package` survive updates through two mechanisms:
-
-1. **Weak-Updates (Immediate Compatibility):**
-   When openSUSE installs a new kernel version via `zypper dup` or `zypper up`, the system rpm scriptlets execute `/usr/lib/module-init-tools/kernel-scriptlets/kmp-post`. If the new kernel's symbol checksums (kABI) are compatible with the driver, it creates symlinks in `/lib/modules/<new-kernel>/weak-updates/`. The driver continues working **immediately without requiring a recompile**.
-
-2. **OBS Automatic Rebuilds (Recompilation on kABI Breaks):**
-   Whenever a major kernel update is published in openSUSE (Tumbleweed, Slowroll, or Leap), OBS automatically detects the new `kernel-default-devel` package and rebuilds your package against the new kernel. `zypper dup` then pulls down the updated RPM seamlessly.
+This directory contains the packaging files to build modular RPM packages for the **HP Dragonfly Folio 13.5" G3** on the [Open Build Service (OBS)](https://build.opensuse.org/) or locally with `rpmbuild`.
 
 ---
 
-## 📦 Package Files
+## 🏛️ Modular Package Architecture
 
-- **`hp-dragonfly-folio-camera.spec`**: The RPM spec file configuring `%kernel_module_package` for `kernel-default`, building the 4 kernel modules (`intel_skl_int3472_discrete`, `ov08a10`, `og0ve1b`, `leds-lm3643`), compiling `ir-grab`, and installing udev rules + Howdy plugins.
-- **`preamble`**: Metadata defining runtime requirements and driver enhancement flags for the KMP subpackage.
-- **`_service`**: Open Build Service source service file configuring OBS to automatically track this GitHub repository (`main` branch) and generate source archives on commit.
+To ensure your setup **reliably survives kernel updates and zypper dup**, the project is split into three independent, self-contained packages:
 
----
-
-## 🚀 Setup Instructions
-
-### Option A: Using the OBS Web UI (`build.opensuse.org`)
-
-1. **Log in or Sign Up:**
-   Visit [build.opensuse.org](https://build.opensuse.org/) and log in with your openSUSE account.
-
-2. **Create a Package in your Home Project:**
-   - Go to your home project (`home:<username>`).
-   - Click **Add Package**.
-   - Name: `hp-dragonfly-folio-camera`
-   - Title: `HP Dragonfly Folio G3 Linux Camera & IR Drivers`
-   - Save.
-
-3. **Upload Packaging Files:**
-   In your new package page, add the 3 files from this directory:
-   - `_service`
-   - `hp-dragonfly-folio-camera.spec`
-   - `preamble`
-
-4. **Add Repositories:**
-   - Go to the **Repositories** tab in your home project (or package).
-   - Click **Add from a Distribution** and select your distribution (e.g., `openSUSE Tumbleweed` or `openSUSE Slowroll`).
-   - OBS will automatically trigger `obs_scm`, clone your GitHub repository, compile the KMP package, and publish the RPMs.
+| Package | Directory | Architecture | Purpose & Update Behavior |
+| :--- | :--- | :--- | :--- |
+| **`hp-presence`** | [`hp-presence/`](file:///home/marc/antigravity/nifty-volta/hp-dragonfly-folio-g3-linux-camera/packaging/obs/hp-presence) | `noarch` | **Walk-Away Auto-Lock & Wake Daemon + KDE Plasma Tray Applet**.<br>Pure Python userland service (`/usr/libexec/hp-presence`). Survives all kernel updates without recompile. |
+| **`hp-dragonfly-folio-howdy`** | [`hp-dragonfly-folio-howdy/`](file:///home/marc/antigravity/nifty-volta/hp-dragonfly-folio-g3-linux-camera/packaging/obs/hp-dragonfly-folio-howdy) | `x86_64` | **Howdy Integration & 3D ToF Anti-Spoofing**.<br>`ir-grab` helper, `tof_verifier.py`, `ir_libcamera_reader.py`, torch udev rules, Polkit scripts. Independent of kernel version. |
+| **`hp-dragonfly-folio-camera`** | [`hp-dragonfly-folio-camera/`](file:///home/marc/antigravity/nifty-volta/hp-dragonfly-folio-g3-linux-camera/packaging/obs/hp-dragonfly-folio-camera) | `x86_64` (KMP) | **Kernel Module Package (KMP)**.<br>Builds `int3472`, `ov08a10`, `og0ve1b`, `lm3643`, `ipu-bridge`. Survives kernel updates via openSUSE **weak-updates** and automatic OBS rebuilds. |
 
 ---
 
-### Option B: Using the `osc` CLI Tool
+## 💡 Why This Survives System Updates
 
-1. **Install `osc`:**
-   ```bash
-   sudo zypper install -y osc
-   ```
-
-2. **Check out your home project:**
-   ```bash
-   osc checkout home:<your-username>
-   cd home:<your-username>
-   ```
-
-3. **Create the package directory and copy files:**
-   ```bash
-   osc mkpac hp-dragonfly-folio-camera
-   cd hp-dragonfly-folio-camera
-   cp /path/to/hp-dragonfly-folio-linux-camera/packaging/obs/* .
-   ```
-
-4. **Commit and trigger build on OBS:**
-   ```bash
-   osc add *
-   osc commit -m "Initial HP Dragonfly Folio camera KMP package"
-   ```
+1. **Kernel Updates (`zypper dup`)**:
+   - `hp-presence` and `hp-dragonfly-folio-howdy` are strictly userland packages and do not depend on `kernel-default-devel`. They remain active, installed, and functional through any kernel upgrade.
+   - `hp-dragonfly-folio-camera-kmp` automatically generates symlinks in `/lib/modules/<new-kernel>/weak-updates/` on kABI-compatible kernel updates, or OBS rebuilds it automatically when a new kernel arrives.
+2. **RPM Tracking (`rpm -V`)**:
+   - All files, systemd user units, presets, udev rules, and recorder plugins are tracked by the RPM database. System updates will never silently erase or overwrite your configuration.
 
 ---
 
-## 📥 Adding Your Repository to Zypper
+## 🚀 Setting Up on OBS via `osc`
 
-Once OBS finishes building (usually 2–3 minutes), add your personal repository to zypper:
-
+### Step 1: Check Out Your Home Project
 ```bash
-# For openSUSE Tumbleweed:
-sudo zypper addrepo -f https://download.opensuse.org/repositories/home:/<your-username>/openSUSE_Tumbleweed/ hp-camera
-
-# Install the packages:
-sudo zypper refresh
-sudo zypper install hp-dragonfly-folio-camera hp-dragonfly-folio-camera-kmp-default
+osc checkout home:<your-username>
+cd home:<your-username>
 ```
 
-From this point forward, every `zypper dup` will automatically keep your camera drivers updated alongside your kernel!
+### Step 2: Create the Packages
+
+#### 1. Presence Daemon (`hp-presence`):
+```bash
+osc mkpac hp-presence
+cd hp-presence
+cp /path/to/hp-dragonfly-folio-linux-camera/packaging/obs/hp-presence/* .
+osc add *
+osc commit -m "Add hp-presence package"
+cd ..
+```
+
+#### 2. Howdy & ToF Anti-Spoofing (`hp-dragonfly-folio-howdy`):
+```bash
+osc mkpac hp-dragonfly-folio-howdy
+cd hp-dragonfly-folio-howdy
+cp /path/to/hp-dragonfly-folio-linux-camera/packaging/obs/hp-dragonfly-folio-howdy/* .
+osc add *
+osc commit -m "Add hp-dragonfly-folio-howdy package"
+cd ..
+```
+
+#### 3. Camera Kernel Drivers (`hp-dragonfly-folio-camera`):
+```bash
+osc mkpac hp-dragonfly-folio-camera
+cd hp-dragonfly-folio-camera
+cp /path/to/hp-dragonfly-folio-linux-camera/packaging/obs/hp-dragonfly-folio-camera/* .
+osc add *
+osc commit -m "Add hp-dragonfly-folio-camera KMP package"
+cd ..
+```
+
+---
+
+## 🛠️ Building Locally with `rpmbuild`
+
+If you want to build and install the RPMs locally right now without waiting for OBS:
+
+```bash
+# Prepare rpmbuild directory tree
+mkdir -p /tmp/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+
+# Build hp-presence (noarch)
+tar --exclude-vcs --zstd -cf /tmp/rpmbuild/SOURCES/hp-presence-0.1.0.tar.zst --transform 's,^\.,hp-presence-0.1.0,' .
+rpmbuild -ba packaging/obs/hp-presence/hp-presence.spec --define "_topdir /tmp/rpmbuild"
+
+# Build hp-dragonfly-folio-howdy (x86_64)
+tar --exclude-vcs --zstd -cf /tmp/rpmbuild/SOURCES/hp-dragonfly-folio-howdy-0.1.0.tar.zst --transform 's,^\.,hp-dragonfly-folio-howdy-0.1.0,' .
+rpmbuild -ba packaging/obs/hp-dragonfly-folio-howdy/hp-dragonfly-folio-howdy.spec --define "_topdir /tmp/rpmbuild"
+
+# Install both RPMs with zypper
+sudo zypper install --allow-unsigned-rpm \
+  /tmp/rpmbuild/RPMS/noarch/hp-presence-*.noarch.rpm \
+  /tmp/rpmbuild/RPMS/x86_64/hp-dragonfly-folio-howdy-*.x86_64.rpm
+```
+
+---
+
+## 📥 Adding Your OBS Repository to Zypper
+
+Once OBS finishes building:
+
+```bash
+# Add your OBS repository:
+sudo zypper addrepo -f https://download.opensuse.org/repositories/home:/<your-username>/openSUSE_Tumbleweed/ hp-hardware
+
+# Refresh and install:
+sudo zypper refresh
+sudo zypper install hp-presence hp-dragonfly-folio-howdy hp-dragonfly-folio-camera hp-dragonfly-folio-camera-kmp-default
+```

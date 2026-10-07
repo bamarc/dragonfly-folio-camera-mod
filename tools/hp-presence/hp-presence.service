@@ -1,0 +1,16 @@
+[Unit]
+Description=HP Dragonfly Folio Human Presence & Walk-Away Auto-Lock Daemon
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 -u /usr/libexec/hp-presence/hp_presence_daemon.py
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical-session.target
