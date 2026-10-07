@@ -24,3 +24,11 @@ workflow:
           branches:
             only:
               - main
+    - trigger_services:
+        project: home:gmarc
+        package: hp-folio-daemon
+        filters:
+          event: push
+          branches:
+            only:
+              - main

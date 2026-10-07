@@ -1,0 +1,15 @@
+[Unit]
+Description=HP Dragonfly Folio Hinge & Display Mode Switch Daemon (Zig)
+Documentation=https://github.com/bamarc/dragonfly-folio-camera-mod
+After=systemd-udev-settle.service
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/hp-folio-daemon
+Restart=on-failure
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
