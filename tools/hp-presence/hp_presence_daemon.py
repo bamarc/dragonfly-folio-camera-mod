@@ -214,7 +214,11 @@ class HpPresenceDaemon(dbus.service.Object):
 				return
 			except Exception:
 				pass
-		os.system("loginctl lock-session")
+		# SECURITY: Avoid os.system shell invocation to prevent shell injection/manipulation risks
+		try:
+			subprocess.run(["loginctl", "lock-session"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		except Exception as e:
+			print(f"[HP Presence] loginctl lock-session notice: {e}", file=sys.stderr)
 
 	def _wake_session(self):
 		print("[HP Presence] Triggering multi-tier display wake (uinput virtual key, DPMS on, PowerManagement)...")
@@ -244,7 +248,13 @@ class HpPresenceDaemon(dbus.service.Object):
 				pass
 
 		# 5. Activate logind session
-		os.system("loginctl activate 1 2>/dev/null || loginctl activate-session 2>/dev/null")
+		# SECURITY: Avoid os.system shell invocation to prevent shell injection/manipulation risks
+		try:
+			res = subprocess.run(["loginctl", "activate", "1"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+			if res.returncode != 0:
+				subprocess.run(["loginctl", "activate-session"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		except Exception as e:
+			print(f"[HP Presence] loginctl activate notice: {e}", file=sys.stderr)
 
 	def _simulate_uinput_wake(self):
 		if not os.path.exists("/dev/uinput") or not os.access("/dev/uinput", os.W_OK):
