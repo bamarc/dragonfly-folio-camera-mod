@@ -26,6 +26,16 @@ except ImportError:
 	def _(text):
 		return text
 
+
+def is_sysfs_path(path):
+	if not path or not isinstance(path, str):
+		return False
+	try:
+		return os.path.realpath(path).startswith("/sys/")
+	except Exception:
+		return False
+
+
 FRAME_WIDTH = 640
 FRAME_HEIGHT = 480
 FRAME_SIZE = FRAME_WIDTH * FRAME_HEIGHT * 2  # 614,400 bytes
@@ -208,7 +218,7 @@ class ir_libcamera_reader:
 			self._atexit_registered = False
 
 		# Fallback torch turn off
-		if self.torch_path and os.path.exists(self.torch_path):
+		if self.torch_path and is_sysfs_path(self.torch_path) and os.path.exists(self.torch_path):
 			try:
 				with open(self.torch_path, "w") as f:
 					f.write("0\n")
