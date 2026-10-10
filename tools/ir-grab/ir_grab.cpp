@@ -51,7 +51,14 @@ using namespace libcamera;
 static std::atomic<bool> g_stop{false};
 static char g_torch_path[PATH_MAX] = "/sys/class/leds/lm3643:torch/brightness";
 
-// Async-signal-safe torch turn-off helper
+static bool is_safe_sysfs_path(const std::string &path) {
+    if (path.empty()) return false;
+    char real_path[PATH_MAX];
+    if (realpath(path.c_str(), real_path) == nullptr) return false;
+    return strncmp(real_path, "/sys/", 5) == 0;
+}
+
+// Async-signal-safe torch turn-off helper (g_torch_path is pre-validated in main)
 static void emergency_torch_off() {
     if (g_torch_path[0] != '\0') {
         int fd = open(g_torch_path, O_WRONLY);
@@ -70,7 +77,7 @@ static void signal_handler(int sig) {
 }
 
 static bool set_torch_brightness(const std::string &path, int level) {
-    if (path.empty()) return false;
+    if (!is_safe_sysfs_path(path)) return false;
     int fd = open(path.c_str(), O_WRONLY);
     if (fd < 0) return false;
     std::string val = std::to_string(level) + "\n";
@@ -237,7 +244,15 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    snprintf(g_torch_path, sizeof(g_torch_path), "%s", torch_path.c_str());
+    if (!is_safe_sysfs_path(torch_path)) {
+        if (verbose) {
+            std::cerr << "Warning: Refusing non-sysfs torch path: " << torch_path << "\n";
+        }
+        torch_path = "";
+        g_torch_path[0] = '\0';
+    } else {
+        snprintf(g_torch_path, sizeof(g_torch_path), "%s", torch_path.c_str());
+    }
 
     // 1. Silence libcamera logging unless verbose
     if (!verbose) {

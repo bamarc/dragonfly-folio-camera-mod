@@ -1,0 +1,4 @@
+## 2025-05-18 - Sysfs Torch Path Validation in Elevated PAM Context
+**Vulnerability:** Unvalidated `torch_path` or `flash_path` configurations/arguments in Python recorders and `ir-grab` C++ binary executed under root PAM privileges could lead to arbitrary file overwrite/truncation if configured or passed non-sysfs target files.
+**Learning:** Signal handlers in C++ helpers like `ir-grab` must remain strictly async-signal-safe (avoiding `realpath()` and `std::string` heap allocations inside signal handlers), so path validation must occur at startup/option parsing before signal registration.
+**Prevention:** Always resolve canonical paths with `realpath()` to ensure target path starts with `/sys/` before opening hardware attribute nodes, and pre-validate strings prior to signal handler initialization.
