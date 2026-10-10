@@ -53,8 +53,9 @@ class VideoCapture:
 		self.flash_brightness = self.config.get("video", "flash_brightness", fallback="50")
 		if self.recording_plugin != "ir_libcamera" and self.flash_path and os.path.exists(self.flash_path):
 			try:
-				with open(self.flash_path, "w") as f:
-					f.write(f"{self.flash_brightness}\n")
+				if os.path.realpath(self.flash_path).startswith("/sys/"):
+					with open(self.flash_path, "w") as f:
+						f.write(f"{self.flash_brightness}\n")
 			except Exception:
 				pass
 
@@ -95,8 +96,9 @@ class VideoCapture:
 		"""
 		if getattr(self, "flash_path", None) and os.path.exists(self.flash_path):
 			try:
-				with open(self.flash_path, "w") as f:
-					f.write("0\n")
+				if os.path.realpath(self.flash_path).startswith("/sys/"):
+					with open(self.flash_path, "w") as f:
+						f.write("0\n")
 			except Exception:
 				pass
 

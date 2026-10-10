@@ -210,8 +210,9 @@ class ir_libcamera_reader:
 		# Fallback torch turn off
 		if self.torch_path and os.path.exists(self.torch_path):
 			try:
-				with open(self.torch_path, "w") as f:
-					f.write("0\n")
+				if os.path.realpath(self.torch_path).startswith("/sys/"):
+					with open(self.torch_path, "w") as f:
+						f.write("0\n")
 			except Exception:
 				pass
 
