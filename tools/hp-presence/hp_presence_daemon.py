@@ -221,18 +221,14 @@ class HpPresenceDaemon(dbus.service.Object):
 			print(f"[HP Presence] loginctl lock-session notice: {e}", file=sys.stderr)
 
 	def _wake_session(self):
-		print("[HP Presence] Triggering multi-tier display wake (uinput virtual key, DPMS on, PowerManagement)...")
-		# 1. Simulate hardware-level keypress via /dev/uinput
-		# This reliably wakes KWin Wayland, turns on display, and prompts kscreenlocker_greet to start PAM/Howdy
-		self._simulate_uinput_wake()
-
-		# 2. Force DPMS on via kscreen-doctor (Wayland display power management)
+		print("[HP Presence] Triggering multi-tier display wake (DPMS on, PowerManagement, uinput virtual key)...")
+		# 1. Force DPMS on via kscreen-doctor first so EC begins powering the display and camera rails
 		try:
 			subprocess.run(["kscreen-doctor", "--dpms", "on"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
 		except Exception as e:
 			print(f"[HP Presence] kscreen-doctor notice: {e}", file=sys.stderr)
 
-		# 3. Wake PowerDevil (KDE Power Management)
+		# 2. Wake PowerDevil (KDE Power Management)
 		try:
 			pm_obj = self.bus.get_object("org.kde.Solid.PowerManagement", "/org/kde/Solid/PowerManagement")
 			pm_iface = dbus.Interface(pm_obj, "org.kde.Solid.PowerManagement")
@@ -240,14 +236,14 @@ class HpPresenceDaemon(dbus.service.Object):
 		except Exception as e:
 			print(f"[HP Presence] PowerManagement wakeup notice: {e}", file=sys.stderr)
 
-		# 4. Simulate user activity on FreeDesktop ScreenSaver
+		# 3. Simulate user activity on FreeDesktop ScreenSaver
 		if self.ss_iface:
 			try:
 				self.ss_iface.SimulateUserActivity()
 			except Exception:
 				pass
 
-		# 5. Activate logind session
+		# 4. Activate logind session
 		# SECURITY: Avoid os.system shell invocation to prevent shell injection/manipulation risks
 		try:
 			res = subprocess.run(["loginctl", "activate", "1"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -255,6 +251,12 @@ class HpPresenceDaemon(dbus.service.Object):
 				subprocess.run(["loginctl", "activate-session"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 		except Exception as e:
 			print(f"[HP Presence] loginctl activate notice: {e}", file=sys.stderr)
+
+		# 5. Allow Embedded Controller a brief 350ms window to stabilize voltage to the camera bezel rail
+		time.sleep(0.35)
+
+		# 6. Simulate hardware-level keypress via /dev/uinput to prompt kscreenlocker_greet to start PAM/Howdy
+		self._simulate_uinput_wake()
 
 	def _simulate_uinput_wake(self):
 		if not os.path.exists("/dev/uinput") or not os.access("/dev/uinput", os.W_OK):

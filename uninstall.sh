@@ -18,9 +18,11 @@ rm -f "$UPDATES_DIR/leds-lm3643.ko"
 rm -f "$UPDATES_DIR/ipu-bridge.ko"
 depmod -a
 
-echo "=== 2. Removing Udev Rules ==="
+echo "=== 2. Removing Udev Rules & Sleep Hooks ==="
 rm -f /etc/udev/rules.d/99-lm3643-torch.rules
 rm -f /etc/udev/rules.d/99-hp-presence.rules
+rm -f /etc/udev/rules.d/99-hp-camera-pm.rules
+rm -f /usr/lib/systemd/system-sleep/hp-camera-sleep.sh
 udevadm control --reload
 
 echo "=== 3. Removing ir-grab & Presence Daemon ==="

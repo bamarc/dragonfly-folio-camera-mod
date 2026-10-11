@@ -930,11 +930,29 @@ static int og0ve1b_power_on(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct og0ve1b *og0ve1b = to_og0ve1b(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct device *host_dev = client ? client->adapter->dev.parent : NULL;
+	struct device *pci_dev = host_dev ? host_dev->parent : NULL;
 	int ret;
+
+	if (pci_dev) {
+		ret = pm_runtime_get_sync(pci_dev);
+		if (ret < 0)
+			pm_runtime_put_noidle(pci_dev);
+	}
+	if (host_dev) {
+		ret = pm_runtime_get_sync(host_dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(host_dev);
+			if (pci_dev)
+				pm_runtime_put(pci_dev);
+			return ret;
+		}
+	}
 
 	ret = regulator_bulk_enable(OG0VE1B_NUM_SUPPLIES, og0ve1b->supplies);
 	if (ret)
-		return ret;
+		goto put_pm;
 
 	gpiod_set_value_cansleep(og0ve1b->reset_gpio, 0);
 	usleep_range(10 * USEC_PER_MSEC, 15 * USEC_PER_MSEC);
@@ -947,9 +965,12 @@ static int og0ve1b_power_on(struct device *dev)
 
 reset_gpio:
 	gpiod_set_value_cansleep(og0ve1b->reset_gpio, 1);
-
 	regulator_bulk_disable(OG0VE1B_NUM_SUPPLIES, og0ve1b->supplies);
-
+put_pm:
+	if (host_dev)
+		pm_runtime_put(host_dev);
+	if (pci_dev)
+		pm_runtime_put(pci_dev);
 	return ret;
 }
 
@@ -957,12 +978,18 @@ static int og0ve1b_power_off(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct og0ve1b *og0ve1b = to_og0ve1b(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct device *host_dev = client ? client->adapter->dev.parent : NULL;
+	struct device *pci_dev = host_dev ? host_dev->parent : NULL;
 
 	clk_disable_unprepare(og0ve1b->xvclk);
-
 	gpiod_set_value_cansleep(og0ve1b->reset_gpio, 1);
-
 	regulator_bulk_disable(OG0VE1B_NUM_SUPPLIES, og0ve1b->supplies);
+
+	if (host_dev)
+		pm_runtime_put(host_dev);
+	if (pci_dev)
+		pm_runtime_put(pci_dev);
 
 	return 0;
 }
@@ -1113,6 +1140,7 @@ static void og0ve1b_remove(struct i2c_client *client)
 }
 
 static const struct dev_pm_ops og0ve1b_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(og0ve1b_power_off, og0ve1b_power_on, NULL)
 };
 

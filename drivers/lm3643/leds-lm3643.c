@@ -68,12 +68,20 @@ static int lm3643_torch_set(struct led_classdev *cdev,
 {
 	struct lm3643_chip *chip = container_of(cdev, struct lm3643_chip, cdev_torch);
 	struct device *host_dev = chip->client->adapter->dev.parent;
+	struct device *pci_dev = host_dev ? host_dev->parent : NULL;
 	int ret = 0;
 
+	if (pci_dev) {
+		ret = pm_runtime_get_sync(pci_dev);
+		if (ret < 0)
+			pm_runtime_put_noidle(pci_dev);
+	}
 	if (host_dev) {
 		ret = pm_runtime_get_sync(host_dev);
 		if (ret < 0) {
 			pm_runtime_put_noidle(host_dev);
+			if (pci_dev)
+				pm_runtime_put(pci_dev);
 			dev_err(chip->dev, "Failed to wake I2C host: %d\n", ret);
 			return ret;
 		}
@@ -119,6 +127,8 @@ out:
 
 	if (host_dev)
 		pm_runtime_put(host_dev);
+	if (pci_dev)
+		pm_runtime_put(pci_dev);
 
 	return ret;
 }
@@ -158,11 +168,19 @@ static int lm3643_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	/* Wake parent I2C host adapter before probe communication */
+	/* Wake parent I2C host adapter and its PCI bridge before probe communication */
+	struct device *pci_dev = host_dev ? host_dev->parent : NULL;
+	if (pci_dev) {
+		ret = pm_runtime_get_sync(pci_dev);
+		if (ret < 0)
+			pm_runtime_put_noidle(pci_dev);
+	}
 	if (host_dev) {
 		ret = pm_runtime_get_sync(host_dev);
 		if (ret < 0) {
 			pm_runtime_put_noidle(host_dev);
+			if (pci_dev)
+				pm_runtime_put(pci_dev);
 			dev_err(dev, "Failed to wake I2C host: %d\n", ret);
 			return ret;
 		}
@@ -182,6 +200,8 @@ static int lm3643_probe(struct i2c_client *client)
 
 	if (host_dev)
 		pm_runtime_put(host_dev);
+	if (pci_dev)
+		pm_runtime_put(pci_dev);
 
 	/* Register torch LED class device */
 	chip->cdev_torch.name = "lm3643:torch";
@@ -203,7 +223,13 @@ static void lm3643_remove(struct i2c_client *client)
 {
 	struct lm3643_chip *chip = i2c_get_clientdata(client);
 	struct device *host_dev = client->adapter->dev.parent;
+	struct device *pci_dev = host_dev ? host_dev->parent : NULL;
 
+	if (pci_dev) {
+		int ret = pm_runtime_get_sync(pci_dev);
+		if (ret < 0)
+			pm_runtime_put_noidle(pci_dev);
+	}
 	if (host_dev) {
 		int ret = pm_runtime_get_sync(host_dev);
 		if (ret < 0)
@@ -214,6 +240,8 @@ static void lm3643_remove(struct i2c_client *client)
 
 	if (host_dev)
 		pm_runtime_put(host_dev);
+	if (pci_dev)
+		pm_runtime_put(pci_dev);
 
 	if (chip->enable_gpio)
 		gpiod_set_value_cansleep(chip->enable_gpio, 0);

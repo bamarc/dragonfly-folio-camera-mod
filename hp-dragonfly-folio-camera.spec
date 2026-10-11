@@ -16,7 +16,7 @@
 #
 
 Name:           hp-dragonfly-folio-camera
-Version:        0.1.0
+Version:        0.1.1
 Release:        0
 Summary:        Linux camera drivers and IR tools for HP Dragonfly Folio 13.5-inch G3
 License:        GPL-2.0-only
@@ -83,8 +83,12 @@ done
 # Install ir-grab helper tool
 install -D -m 0755 tools/ir-grab/build/ir-grab %{buildroot}%{_libexecdir}/howdy/ir-grab
 
-# Install udev rule for IR strobe
+# Install udev rules for IR strobe and power management
 install -D -m 0644 udev/99-lm3643-torch.rules %{buildroot}%{_udevrulesdir}/99-lm3643-torch.rules
+install -D -m 0644 udev/99-hp-camera-pm.rules %{buildroot}%{_udevrulesdir}/99-hp-camera-pm.rules
+
+# Install systemd sleep hook for Modern Standby (s2idle) resume
+install -D -m 0755 tools/hp-camera-sleep.sh %{buildroot}%{_prefix}/lib/systemd/system-sleep/hp-camera-sleep.sh
 
 # Install Howdy recorder plugins & 3D anti-spoofing
 install -D -m 0644 howdy/recorders/ir_libcamera_reader.py %{buildroot}%{_prefix}/lib64/howdy/recorders/ir_libcamera_reader.py
@@ -101,6 +105,8 @@ install -D -m 0755 disable_polkit_howdy.sh %{buildroot}%{_sbindir}/disable_polki
 %dir %{_libexecdir}/howdy
 %{_libexecdir}/howdy/ir-grab
 %{_udevrulesdir}/99-lm3643-torch.rules
+%{_udevrulesdir}/99-hp-camera-pm.rules
+%{_prefix}/lib/systemd/system-sleep/hp-camera-sleep.sh
 %dir %{_prefix}/lib64/howdy
 %dir %{_prefix}/lib64/howdy/recorders
 %{_prefix}/lib64/howdy/recorders/ir_libcamera_reader.py

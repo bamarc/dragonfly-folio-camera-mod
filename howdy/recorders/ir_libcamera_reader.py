@@ -102,20 +102,29 @@ class ir_libcamera_reader:
 			"--max-seconds", str(max(15, self.timeout + 5))
 		]
 
-		try:
-			self.proc = subprocess.Popen(
-				cmd,
-				stdin=subprocess.PIPE,
-				stdout=subprocess.PIPE,
-				stderr=subprocess.DEVNULL,
-				bufsize=0
-			)
-			if not self._atexit_registered:
-				atexit.register(self.release)
-				self._atexit_registered = True
-		except Exception as e:
-			print(_("Failed to start ir-grab: %s") % str(e), file=sys.stderr)
-			self.proc = None
+		for attempt in range(2):
+			try:
+				self.proc = subprocess.Popen(
+					cmd,
+					stdin=subprocess.PIPE,
+					stdout=subprocess.PIPE,
+					stderr=subprocess.DEVNULL,
+					bufsize=0
+				)
+				# Allow pipeline a brief moment to initialize and check if it exited immediately
+				time.sleep(0.15)
+				if self.proc.poll() is not None:
+					print(f"[ir_libcamera_reader] ir-grab exited immediately on attempt {attempt+1}, retrying...", file=sys.stderr)
+					time.sleep(0.3)
+					continue
+				if not self._atexit_registered:
+					atexit.register(self.release)
+					self._atexit_registered = True
+				break
+			except Exception as e:
+				print(_("Failed to start ir-grab: %s") % str(e), file=sys.stderr)
+				self.proc = None
+				time.sleep(0.2)
 
 	def set(self, prop, setting):
 		if prop == CAP_PROP_FRAME_WIDTH:

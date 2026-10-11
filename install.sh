@@ -41,10 +41,15 @@ cp "$SCRIPT_DIR/drivers/ipu-bridge/ipu-bridge.ko" "$UPDATES_DIR/"
 depmod -a
 echo "Modules installed and depmod updated."
 
-echo "=== 3. Installing Udev Rules for Strobe & Presence Sensors ==="
+echo "=== 3. Installing Udev Rules for Strobe, PM & Presence Sensors ==="
 cp "$SCRIPT_DIR/udev/99-lm3643-torch.rules" /etc/udev/rules.d/
 cp "$SCRIPT_DIR/udev/99-hp-presence.rules" /etc/udev/rules.d/
+cp "$SCRIPT_DIR/udev/99-hp-camera-pm.rules" /etc/udev/rules.d/
+mkdir -p /usr/lib/systemd/system-sleep
+cp "$SCRIPT_DIR/tools/hp-camera-sleep.sh" /usr/lib/systemd/system-sleep/
+chmod +x /usr/lib/systemd/system-sleep/hp-camera-sleep.sh
 udevadm control --reload
+udevadm trigger -s pci -c add
 udevadm trigger -s leds -c change
 udevadm trigger --subsystem-match=hidraw
 udevadm trigger --subsystem-match=platform

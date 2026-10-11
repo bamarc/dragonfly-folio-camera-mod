@@ -16,7 +16,7 @@
 #
 
 Name:           hp-presence
-Version:        0.1.0
+Version:        0.1.1
 Release:        0
 Summary:        Human presence detection and walk-away auto-lock daemon for HP Dragonfly Folio G3
 License:        GPL-2.0-only
