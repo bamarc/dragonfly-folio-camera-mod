@@ -207,11 +207,13 @@ class ir_libcamera_reader:
 				pass
 			self._atexit_registered = False
 
-		# Fallback torch turn off
+		# Fallback torch turn off (restricted strictly to /sys/ devices)
 		if self.torch_path and os.path.exists(self.torch_path):
 			try:
-				with open(self.torch_path, "w") as f:
-					f.write("0\n")
+				real_path = os.path.realpath(self.torch_path)
+				if real_path.startswith("/sys/"):
+					with open(real_path, "w") as f:
+						f.write("0\n")
 			except Exception:
 				pass
 
