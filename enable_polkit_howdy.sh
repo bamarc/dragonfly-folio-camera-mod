@@ -39,7 +39,18 @@ if [ "$TARGET_USER" = "root" ]; then
     fi
 fi
 
-USER_MODEL="/etc/howdy/models/${TARGET_USER}.dat"
+# Security input validation: prevent path traversal or shell manipulation via TARGET_USER
+if ! [[ "$TARGET_USER" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*\$?$ ]] || [[ "$TARGET_USER" == *".."* ]] || [[ "$TARGET_USER" == *"/"* ]]; then
+    echo "Error: Invalid username or potential path traversal detected: '$TARGET_USER'" >&2
+    exit 1
+fi
+
+USER_MODEL="$(realpath -m "/etc/howdy/models/${TARGET_USER}.dat")"
+if [[ "$USER_MODEL" != /etc/howdy/models/* ]]; then
+    echo "Error: USER_MODEL path resolved outside /etc/howdy/models/: '$USER_MODEL'" >&2
+    exit 1
+fi
+
 if [ -f "$USER_MODEL" ]; then
     if [ ! -e /etc/howdy/models/root.dat ]; then
         ln -s "$USER_MODEL" /etc/howdy/models/root.dat
