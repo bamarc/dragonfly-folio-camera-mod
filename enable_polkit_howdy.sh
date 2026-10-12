@@ -40,15 +40,16 @@ if [ "$TARGET_USER" = "root" ]; then
 fi
 
 USER_MODEL="/etc/howdy/models/${TARGET_USER}.dat"
-if [ -f "$USER_MODEL" ]; then
-    if [ ! -e /etc/howdy/models/root.dat ]; then
-        ln -s "$USER_MODEL" /etc/howdy/models/root.dat
-        echo "Created symlink: /etc/howdy/models/root.dat -> $USER_MODEL"
-    else
-        echo "Root model /etc/howdy/models/root.dat already exists."
+# Verify target model exists and stays contained within /etc/howdy/models/
+if [ -f "$USER_MODEL" ] && [ "$(realpath -m "$USER_MODEL")" = "/etc/howdy/models/${TARGET_USER}.dat" ]; then
+    if [ -L /etc/howdy/models/root.dat ] || [ ! -e /etc/howdy/models/root.dat ]; then
+        ln -snf "$USER_MODEL" /etc/howdy/models/root.dat
+        echo "Created/updated symlink: /etc/howdy/models/root.dat -> $USER_MODEL"
+    elif [ -f /etc/howdy/models/root.dat ]; then
+        echo "Root model /etc/howdy/models/root.dat already exists as a regular file."
     fi
 else
-    echo "Warning: Model file $USER_MODEL not found."
+    echo "Warning: Model file $USER_MODEL not found or invalid."
     echo "Please enroll your face by running: sudo howdy -U $TARGET_USER add"
 fi
 
