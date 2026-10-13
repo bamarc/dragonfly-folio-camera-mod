@@ -43,15 +43,27 @@ class ir_libcamera_reader:
 		else:
 			self.config = config
 
-		# Locate ir-grab binary
+		# Locate ir-grab binary safely
 		default_bin = "/usr/libexec/howdy/ir-grab"
-		local_bin = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "..", "tools", "ir-grab", "build", "ir-grab")
-		if os.path.isfile(default_bin) and os.access(default_bin, os.X_OK):
-			self.ir_grab_bin = self.config.get("video", "ir_grab_path", fallback=default_bin)
-		elif os.path.isfile(local_bin) and os.access(local_bin, os.X_OK):
-			self.ir_grab_bin = self.config.get("video", "ir_grab_path", fallback=local_bin)
+		local_bin = os.path.realpath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "..", "tools", "ir-grab", "build", "ir-grab"))
+		candidate_bin = self.config.get("video", "ir_grab_path", fallback=default_bin)
+		real_candidate = os.path.realpath(candidate_bin)
+
+		def _is_safe_exec(path):
+			if not (os.path.isabs(path) and os.path.isfile(path) and os.access(path, os.X_OK)):
+				return False
+			try:
+				# Prevent local privilege escalation by ensuring binary is not world-writable
+				return (os.stat(path).st_mode & 0o002) == 0
+			except OSError:
+				return False
+
+		if _is_safe_exec(real_candidate):
+			self.ir_grab_bin = real_candidate
+		elif _is_safe_exec(local_bin):
+			self.ir_grab_bin = local_bin
 		else:
-			self.ir_grab_bin = self.config.get("video", "ir_grab_path", fallback=default_bin)
+			self.ir_grab_bin = os.path.realpath(default_bin)
 
 		self.camera_id = self.config.get("video", "ir_camera", fallback=r"\_SB_.PC00.LNK1")
 		self.gain = self.config.getint("video", "ir_gain", fallback=128)
