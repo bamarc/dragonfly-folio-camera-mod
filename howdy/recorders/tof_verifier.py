@@ -106,9 +106,10 @@ class TofVerifier:
 		depth_grid = None  # np.array of 64 floats (cm)
 
 		try:
-			p_fd = os.open(self._presence_dev, os.O_RDWR | os.O_NONBLOCK)
+			flags = os.O_RDWR | os.O_NONBLOCK | getattr(os, "O_CLOEXEC", 0)
+			p_fd = os.open(self._presence_dev, flags)
 			if self._tof_dev and os.path.exists(self._tof_dev):
-				t_fd = os.open(self._tof_dev, os.O_RDWR | os.O_NONBLOCK)
+				t_fd = os.open(self._tof_dev, flags)
 
 			fds = [p_fd] + ([t_fd] if t_fd else [])
 			start = time.time()
