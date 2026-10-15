@@ -21,8 +21,13 @@ except ImportError:
 		TofVerifier = None
 
 try:
-	from i18n import _
-except ImportError:
+	import i18n
+	if hasattr(i18n, "_") and callable(i18n._):
+		_ = i18n._
+	else:
+		def _(text):
+			return text
+except Exception:
 	def _(text):
 		return text
 
@@ -60,6 +65,8 @@ class ir_libcamera_reader:
 		self.normalize_mode = self.config.get("video", "ir_normalize", fallback="percentile")
 		self.use_clahe = self.config.getboolean("video", "ir_clahe", fallback=False)
 		self.torch_path = self.config.get("video", "flash_path", fallback="/sys/class/leds/lm3643:torch/brightness")
+		if self.torch_path and not os.path.realpath(self.torch_path).startswith("/sys/"):
+			self.torch_path = "/sys/class/leds/lm3643:torch/brightness"
 		self.torch_level = self.config.getint("video", "flash_brightness", fallback=60)
 		self.timeout = self.config.getint("video", "timeout", fallback=10)
 
@@ -82,7 +89,7 @@ class ir_libcamera_reader:
 
 	def _start_ir_grab(self):
 		if self.tof_verifier is not None and self.tof_verifier.enabled:
-			passed, reason, _ = self.tof_verifier.verify()
+			passed, reason, details = self.tof_verifier.verify()
 			if not passed:
 				# 3D Anti-spoofing rejected the attempt
 				return
@@ -219,8 +226,9 @@ class ir_libcamera_reader:
 		# Fallback torch turn off
 		if self.torch_path and os.path.exists(self.torch_path):
 			try:
-				with open(self.torch_path, "w") as f:
-					f.write("0\n")
+				if os.path.realpath(self.torch_path).startswith("/sys/"):
+					with open(self.torch_path, "w") as f:
+						f.write("0\n")
 			except Exception:
 				pass
 
