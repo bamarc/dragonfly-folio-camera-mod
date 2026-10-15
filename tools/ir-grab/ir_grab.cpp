@@ -51,6 +51,15 @@ using namespace libcamera;
 static std::atomic<bool> g_stop{false};
 static char g_torch_path[PATH_MAX] = "/sys/class/leds/lm3643:torch/brightness";
 
+static bool is_safe_sysfs_path(const std::string &path) {
+    if (path.empty()) return false;
+    char real_buf[PATH_MAX];
+    if (realpath(path.c_str(), real_buf) != nullptr) {
+        return strncmp(real_buf, "/sys/", 5) == 0;
+    }
+    return false;
+}
+
 // Async-signal-safe torch turn-off helper
 static void emergency_torch_off() {
     if (g_torch_path[0] != '\0') {
@@ -70,7 +79,7 @@ static void signal_handler(int sig) {
 }
 
 static bool set_torch_brightness(const std::string &path, int level) {
-    if (path.empty()) return false;
+    if (path.empty() || !is_safe_sysfs_path(path)) return false;
     int fd = open(path.c_str(), O_WRONLY);
     if (fd < 0) return false;
     std::string val = std::to_string(level) + "\n";
@@ -237,6 +246,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    if (!torch_path.empty() && !is_safe_sysfs_path(torch_path)) {
+        torch_path = "/sys/class/leds/lm3643:torch/brightness";
+    }
     snprintf(g_torch_path, sizeof(g_torch_path), "%s", torch_path.c_str());
 
     // 1. Silence libcamera logging unless verbose
