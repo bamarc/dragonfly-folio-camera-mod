@@ -11,7 +11,23 @@ os.environ["OPENCV_LOG_LEVEL"] = "OFF"
 import configparser
 import cv2
 
-from i18n import _
+try:
+	from i18n import _
+except ImportError:
+	def _(text):
+		return text
+
+
+def _is_safe_sysfs_path(path):
+	"""Validates that path exists and its realpath is strictly under /sys/ to prevent file truncation vulnerabilities."""
+	if not path or not isinstance(path, str):
+		return False
+	try:
+		real_path = os.path.realpath(path)
+		return real_path.startswith("/sys/") and os.path.exists(real_path)
+	except Exception:
+		return False
+
 
 # Class to provide boilerplate code to build a video recorder with the
 # correct settings from the config file.
@@ -51,7 +67,7 @@ class VideoCapture:
 		# Turn on flash / torch if configured (ir_libcamera handles torch inside ir-grab)
 		self.flash_path = self.config.get("video", "flash_path", fallback="")
 		self.flash_brightness = self.config.get("video", "flash_brightness", fallback="50")
-		if self.recording_plugin != "ir_libcamera" and self.flash_path and os.path.exists(self.flash_path):
+		if self.recording_plugin != "ir_libcamera" and _is_safe_sysfs_path(self.flash_path):
 			try:
 				with open(self.flash_path, "w") as f:
 					f.write(f"{self.flash_brightness}\n")
@@ -93,7 +109,7 @@ class VideoCapture:
 		"""
 		Release cameras and turn off flash
 		"""
-		if getattr(self, "flash_path", None) and os.path.exists(self.flash_path):
+		if getattr(self, "flash_path", None) and _is_safe_sysfs_path(self.flash_path):
 			try:
 				with open(self.flash_path, "w") as f:
 					f.write("0\n")

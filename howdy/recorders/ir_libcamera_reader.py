@@ -26,6 +26,18 @@ except ImportError:
 	def _(text):
 		return text
 
+
+def _is_safe_sysfs_path(path):
+	"""Validates that path exists and its realpath is strictly under /sys/ to prevent file truncation vulnerabilities."""
+	if not path or not isinstance(path, str):
+		return False
+	try:
+		real_path = os.path.realpath(path)
+		return real_path.startswith("/sys/") and os.path.exists(real_path)
+	except Exception:
+		return False
+
+
 FRAME_WIDTH = 640
 FRAME_HEIGHT = 480
 FRAME_SIZE = FRAME_WIDTH * FRAME_HEIGHT * 2  # 614,400 bytes
@@ -60,6 +72,8 @@ class ir_libcamera_reader:
 		self.normalize_mode = self.config.get("video", "ir_normalize", fallback="percentile")
 		self.use_clahe = self.config.getboolean("video", "ir_clahe", fallback=False)
 		self.torch_path = self.config.get("video", "flash_path", fallback="/sys/class/leds/lm3643:torch/brightness")
+		if not _is_safe_sysfs_path(self.torch_path):
+			self.torch_path = "/sys/class/leds/lm3643:torch/brightness"
 		self.torch_level = self.config.getint("video", "flash_brightness", fallback=60)
 		self.timeout = self.config.getint("video", "timeout", fallback=10)
 
@@ -217,7 +231,7 @@ class ir_libcamera_reader:
 			self._atexit_registered = False
 
 		# Fallback torch turn off
-		if self.torch_path and os.path.exists(self.torch_path):
+		if self.torch_path and _is_safe_sysfs_path(self.torch_path):
 			try:
 				with open(self.torch_path, "w") as f:
 					f.write("0\n")
