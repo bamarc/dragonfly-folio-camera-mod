@@ -71,6 +71,13 @@ static void signal_handler(int sig) {
 
 static bool set_torch_brightness(const std::string &path, int level) {
     if (path.empty()) return false;
+    char real_path[PATH_MAX];
+    if (!realpath(path.c_str(), real_path)) return false;
+    if (strncmp(real_path, "/sys/class/leds/", 16) != 0 &&
+        strncmp(real_path, "/sys/devices/", 13) != 0 &&
+        strncmp(real_path, "/sys/bus/", 9) != 0) {
+        return false;
+    }
     int fd = open(path.c_str(), O_WRONLY);
     if (fd < 0) return false;
     std::string val = std::to_string(level) + "\n";

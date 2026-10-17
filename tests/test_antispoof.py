@@ -6,6 +6,35 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "howdy", "recorders"))
 from tof_verifier import TofVerifier
+from video_capture import is_safe_sysfs_path as vc_is_safe_sysfs_path
+from ir_libcamera_reader import is_safe_sysfs_path as ir_is_safe_sysfs_path
+
+
+class TestPathSecurity(unittest.TestCase):
+	def test_sysfs_path_validation(self):
+		"""Test that torch/flash path validation allows sysfs nodes and rejects arbitrary paths."""
+		valid_paths = [
+			"/sys/class/leds/lm3643:torch/brightness",
+			"/sys/devices/pci0000:00/0000:00:19.0/i2c-0/0-0063/leds/lm3643:torch/brightness"
+		]
+		invalid_paths = [
+			"/etc/shadow",
+			"/etc/passwd",
+			"/tmp/malicious.txt",
+			"../etc/shadow",
+			"/sys/../etc/shadow",
+			"",
+			None,
+			123
+		]
+
+		for p in valid_paths:
+			self.assertTrue(vc_is_safe_sysfs_path(p), f"vc_is_safe_sysfs_path should accept {p}")
+			self.assertTrue(ir_is_safe_sysfs_path(p), f"ir_is_safe_sysfs_path should accept {p}")
+
+		for p in invalid_paths:
+			self.assertFalse(vc_is_safe_sysfs_path(p), f"vc_is_safe_sysfs_path should reject {p}")
+			self.assertFalse(ir_is_safe_sysfs_path(p), f"ir_is_safe_sysfs_path should reject {p}")
 
 
 class TestTofAntiSpoof(unittest.TestCase):

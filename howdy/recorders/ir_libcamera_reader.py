@@ -31,6 +31,17 @@ FRAME_HEIGHT = 480
 FRAME_SIZE = FRAME_WIDTH * FRAME_HEIGHT * 2  # 614,400 bytes
 
 
+def is_safe_sysfs_path(path):
+	"""Validates that a path resolves strictly inside sysfs to prevent arbitrary file writes."""
+	if not path or not isinstance(path, str):
+		return False
+	try:
+		real_path = os.path.realpath(path)
+	except Exception:
+		return False
+	return real_path.startswith("/sys/class/leds/") or real_path.startswith("/sys/devices/") or real_path.startswith("/sys/bus/")
+
+
 class ir_libcamera_reader:
 	"""
 	Implements the OpenCV VideoCapture interface for Howdy using ir-grab
@@ -91,13 +102,15 @@ class ir_libcamera_reader:
 			print(_("ir-grab binary not found at %s") % self.ir_grab_bin, file=sys.stderr)
 			return
 
+		torch_arg = self.torch_path if is_safe_sysfs_path(self.torch_path) else ""
+
 		cmd = [
 			self.ir_grab_bin,
 			"--camera", self.camera_id,
 			"--frames", "0",
 			"--gain", str(self.gain),
 			"--exposure", str(self.exposure),
-			"--torch", self.torch_path,
+			"--torch", torch_arg,
 			"--torch-level", str(self.torch_level),
 			"--max-seconds", str(max(15, self.timeout + 5))
 		]
@@ -217,7 +230,7 @@ class ir_libcamera_reader:
 			self._atexit_registered = False
 
 		# Fallback torch turn off
-		if self.torch_path and os.path.exists(self.torch_path):
+		if self.torch_path and is_safe_sysfs_path(self.torch_path) and os.path.exists(self.torch_path):
 			try:
 				with open(self.torch_path, "w") as f:
 					f.write("0\n")
