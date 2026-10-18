@@ -55,7 +55,8 @@ udevadm trigger --subsystem-match=hidraw
 udevadm trigger --subsystem-match=platform
 if [ -f /sys/class/leds/lm3643:torch/brightness ]; then
     chgrp video /sys/class/leds/lm3643:torch/brightness || true
-    chmod 0664 /sys/class/leds/lm3643:torch/brightness || true
+    # Enforce least-privilege permissions (group video read/write, no world access)
+    chmod 0660 /sys/class/leds/lm3643:torch/brightness || true
 fi
 
 echo "=== 4. Building and Installing ir-grab ==="
