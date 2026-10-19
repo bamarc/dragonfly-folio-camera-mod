@@ -6,6 +6,8 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "howdy", "recorders"))
 from tof_verifier import TofVerifier
+from video_capture import _is_safe_sysfs_path as safe_sysfs_vc
+from ir_libcamera_reader import _is_safe_sysfs_path as safe_sysfs_ir
 
 
 class TestTofAntiSpoof(unittest.TestCase):
@@ -50,6 +52,17 @@ class TestTofAntiSpoof(unittest.TestCase):
 		passed, reason, details = self.verifier.verify(timeout_sec=0.4)
 		print(f"\n[Live Hardware Check] Passed: {passed}, Reason: '{reason}', Details: {details}")
 		self.assertTrue(passed or "detected" in reason.lower() or "not found" in reason.lower())
+
+	def test_sysfs_path_validation(self):
+		"""Verify that _is_safe_sysfs_path only permits safe paths within /sys/."""
+		for safe_fn in (safe_sysfs_vc, safe_sysfs_ir):
+			self.assertTrue(safe_fn("/sys/class/leds/lm3643:torch/brightness"))
+			self.assertTrue(safe_fn("/sys/bus/platform/devices"))
+			self.assertFalse(safe_fn("/etc/shadow"))
+			self.assertFalse(safe_fn("/tmp/foo"))
+			self.assertFalse(safe_fn("/sys/../etc/passwd"))
+			self.assertFalse(safe_fn(None))
+			self.assertFalse(safe_fn(""))
 
 
 if __name__ == "__main__":
