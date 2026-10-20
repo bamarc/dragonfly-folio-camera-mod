@@ -39,13 +39,22 @@ if [ "$TARGET_USER" = "root" ]; then
     fi
 fi
 
+# Sanitize TARGET_USER to prevent path traversal risks
+if ! [[ "$TARGET_USER" =~ ^[a-zA-Z0-9_.-]+$ ]]; then
+    echo "Error: Invalid target username '$TARGET_USER'" >&2
+    exit 1
+fi
+
 USER_MODEL="/etc/howdy/models/${TARGET_USER}.dat"
+ROOT_MODEL="/etc/howdy/models/root.dat"
+
 if [ -f "$USER_MODEL" ]; then
-    if [ ! -e /etc/howdy/models/root.dat ]; then
-        ln -s "$USER_MODEL" /etc/howdy/models/root.dat
-        echo "Created symlink: /etc/howdy/models/root.dat -> $USER_MODEL"
+    # Security check: verify root.dat doesn't exist as either a file or a dangling symlink
+    if [ ! -e "$ROOT_MODEL" ] && [ ! -L "$ROOT_MODEL" ]; then
+        ln -sfn "$(basename "$USER_MODEL")" "$ROOT_MODEL"
+        echo "Created symlink: $ROOT_MODEL -> $(basename "$USER_MODEL")"
     else
-        echo "Root model /etc/howdy/models/root.dat already exists."
+        echo "Root model $ROOT_MODEL already exists."
     fi
 else
     echo "Warning: Model file $USER_MODEL not found."
