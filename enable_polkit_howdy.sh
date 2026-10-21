@@ -39,7 +39,21 @@ if [ "$TARGET_USER" = "root" ]; then
     fi
 fi
 
+# SECURITY: Validate target username format to prevent path traversal & privilege escalation
+if [[ ! "$TARGET_USER" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    echo "Error: Invalid target username '$TARGET_USER'" >&2
+    exit 1
+fi
+
 USER_MODEL="/etc/howdy/models/${TARGET_USER}.dat"
+
+# SECURITY: Verify target model directory resolves strictly inside /etc/howdy/models
+RESOLVED_DIR="$(dirname "$(realpath -m "$USER_MODEL")")"
+if [ "$RESOLVED_DIR" != "/etc/howdy/models" ]; then
+    echo "Error: Model path '$USER_MODEL' resolves outside /etc/howdy/models" >&2
+    exit 1
+fi
+
 if [ -f "$USER_MODEL" ]; then
     if [ ! -e /etc/howdy/models/root.dat ]; then
         ln -s "$USER_MODEL" /etc/howdy/models/root.dat
