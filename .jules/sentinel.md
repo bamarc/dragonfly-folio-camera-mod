@@ -1,0 +1,4 @@
+## 2026-03-31 - Path Traversal & Sysfs File Truncation in Howdy Recorders
+**Vulnerability:** Configurable `flash_path` / `torch_path` in `video_capture.py` and `ir_libcamera_reader.py` was opened in write mode (`"w"`) when running under elevated PAM/root privileges without validating that the path resolved to sysfs. Setting `flash_path` to `/etc/shadow` or using traversal (`/sys/../../etc/passwd`) would truncate arbitrary system files.
+**Learning:** System hardware control paths specified in configuration files must never be blindly passed to `open(..., "w")` when running as root. Symlinks and relative paths (`..`) can bypass naive string prefixes.
+**Prevention:** Always resolve target paths using `os.path.realpath(path)` and enforce that the canonical path strictly starts with `/sys/` before opening files for sysfs hardware attribute modification.
