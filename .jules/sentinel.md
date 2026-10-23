@@ -1,0 +1,4 @@
+## 2026-03-30 - Howdy Recorder Sysfs Path Truncation Vulnerability
+**Vulnerability:** Howdy recorder plugins (`ir_libcamera_reader` and `video_capture`) opened configured `flash_path` / `torch_path` in write mode (`"w"`) without validating that the path resolved inside `/sys/`. When Howdy runs under PAM authentication context with root privileges, this could allow arbitrary file truncation as root if an unprivileged or malicious path was supplied in config.
+**Learning:** Sysfs path configuration options in hardware control plugins must be strictly validated using canonical path resolution (`os.path.realpath`) before opening for writes.
+**Prevention:** Always verify `os.path.realpath(path).startswith("/sys/")` before opening any hardware device or sysfs path in write mode when running in high-privilege execution contexts.
