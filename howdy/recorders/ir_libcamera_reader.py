@@ -31,6 +31,19 @@ FRAME_HEIGHT = 480
 FRAME_SIZE = FRAME_WIDTH * FRAME_HEIGHT * 2  # 614,400 bytes
 
 
+def _is_safe_sysfs_path(path):
+	"""
+	Validates that path is a valid file under /sys/ to prevent arbitrary file truncation/writes as root.
+	"""
+	if not path or not isinstance(path, str):
+		return False
+	try:
+		real_path = os.path.realpath(path)
+		return real_path.startswith("/sys/") and os.path.exists(real_path)
+	except Exception:
+		return False
+
+
 class ir_libcamera_reader:
 	"""
 	Implements the OpenCV VideoCapture interface for Howdy using ir-grab
@@ -216,8 +229,8 @@ class ir_libcamera_reader:
 				pass
 			self._atexit_registered = False
 
-		# Fallback torch turn off
-		if self.torch_path and os.path.exists(self.torch_path):
+		# Fallback torch turn off (only if path resolves safely inside /sys/)
+		if _is_safe_sysfs_path(self.torch_path):
 			try:
 				with open(self.torch_path, "w") as f:
 					f.write("0\n")
