@@ -31,6 +31,20 @@ FRAME_HEIGHT = 480
 FRAME_SIZE = FRAME_WIDTH * FRAME_HEIGHT * 2  # 614,400 bytes
 
 
+def is_valid_sysfs_path(path):
+	"""
+	Validates that a sysfs path resolves under /sys/class/leds/ or /sys/devices/
+	to prevent path traversal vulnerabilities.
+	"""
+	if not path or not isinstance(path, str):
+		return False
+	try:
+		resolved = os.path.realpath(path)
+		return resolved.startswith("/sys/class/leds/") or resolved.startswith("/sys/devices/")
+	except Exception:
+		return False
+
+
 class ir_libcamera_reader:
 	"""
 	Implements the OpenCV VideoCapture interface for Howdy using ir-grab
@@ -217,7 +231,7 @@ class ir_libcamera_reader:
 			self._atexit_registered = False
 
 		# Fallback torch turn off
-		if self.torch_path and os.path.exists(self.torch_path):
+		if self.torch_path and is_valid_sysfs_path(self.torch_path) and os.path.exists(self.torch_path):
 			try:
 				with open(self.torch_path, "w") as f:
 					f.write("0\n")

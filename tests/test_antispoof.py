@@ -6,6 +6,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "howdy", "recorders"))
 from tof_verifier import TofVerifier
+from ir_libcamera_reader import is_valid_sysfs_path
 
 
 class TestTofAntiSpoof(unittest.TestCase):
@@ -50,6 +51,12 @@ class TestTofAntiSpoof(unittest.TestCase):
 		passed, reason, details = self.verifier.verify(timeout_sec=0.4)
 		print(f"\n[Live Hardware Check] Passed: {passed}, Reason: '{reason}', Details: {details}")
 		self.assertTrue(passed or "detected" in reason.lower() or "not found" in reason.lower())
+
+	def test_torch_path_security_validation(self):
+		"""Verify path security logic for torch sysfs paths using ir_libcamera_reader.is_valid_sysfs_path."""
+		self.assertFalse(is_valid_sysfs_path("/etc/shadow"), "Arbitrary system files must be rejected")
+		self.assertFalse(is_valid_sysfs_path("/tmp/test_torch"), "Non-sysfs files must be rejected")
+		self.assertFalse(is_valid_sysfs_path("/sys/class/leds/../../etc/passwd"), "Path traversal attempts must be rejected")
 
 
 if __name__ == "__main__":

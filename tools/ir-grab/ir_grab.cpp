@@ -51,6 +51,15 @@ using namespace libcamera;
 static std::atomic<bool> g_stop{false};
 static char g_torch_path[PATH_MAX] = "/sys/class/leds/lm3643:torch/brightness";
 
+// Validate that a path resolves to /sys/class/leds/ or /sys/devices/ to prevent path traversal
+static bool is_valid_sysfs_torch_path(const char *path) {
+    if (!path || path[0] == '\0') return false;
+    char real_buf[PATH_MAX];
+    if (!realpath(path, real_buf)) return false;
+    std::string resolved(real_buf);
+    return (resolved.rfind("/sys/class/leds/", 0) == 0 || resolved.rfind("/sys/devices/", 0) == 0);
+}
+
 // Async-signal-safe torch turn-off helper
 static void emergency_torch_off() {
     if (g_torch_path[0] != '\0') {
@@ -70,7 +79,7 @@ static void signal_handler(int sig) {
 }
 
 static bool set_torch_brightness(const std::string &path, int level) {
-    if (path.empty()) return false;
+    if (path.empty() || !is_valid_sysfs_torch_path(path.c_str())) return false;
     int fd = open(path.c_str(), O_WRONLY);
     if (fd < 0) return false;
     std::string val = std::to_string(level) + "\n";
@@ -237,7 +246,17 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    snprintf(g_torch_path, sizeof(g_torch_path), "%s", torch_path.c_str());
+    if (!is_valid_sysfs_torch_path(torch_path.c_str())) {
+        if (verbose) {
+            std::cerr << "Security error: Invalid torch sysfs path: " << torch_path << "\n";
+        }
+        g_torch_path[0] = '\0';
+        if (torch_required) {
+            return 5;
+        }
+    } else {
+        snprintf(g_torch_path, sizeof(g_torch_path), "%s", torch_path.c_str());
+    }
 
     // 1. Silence libcamera logging unless verbose
     if (!verbose) {
