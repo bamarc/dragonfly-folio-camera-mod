@@ -28,21 +28,19 @@ BuildRequires:  %{kernel_module_package_buildreqs}
 BuildRequires:  gcc-c++
 BuildRequires:  kernel-default-devel
 BuildRequires:  kernel-devel
-BuildRequires:  libcamera-devel
-BuildRequires:  meson
-BuildRequires:  ninja
 BuildRequires:  pkgconfig
 BuildRequires:  pkgconfig(udev)
 BuildRequires:  zstd
+Recommends:     hp-dragonfly-folio-howdy
 Recommends:     hp-presence
 
 %kernel_module_package -p %{SOURCE0}
 
 %description
-Custom Linux kernel drivers, hardware fixes, and facial authentication tools
-for the HP Dragonfly Folio 13.5" G3 (Intel 12th Gen Alder Lake-U15, IPU6).
+Custom Linux kernel drivers and power-management configuration for the
+HP Dragonfly Folio 13.5" G3 (Intel 12th Gen Alder Lake-U15, IPU6).
 Enables the RGB camera (OV08A10), monochrome IR camera (OG0VA1B / OG0VE1B),
-TI LM3643 IR strobe, and Howdy facial authentication.
+and TI LM3643 IR strobe LED.
 
 %prep
 %setup -q -c -T -D
@@ -51,7 +49,6 @@ if [ -f "%{_sourcedir}/%{name}-%{version}.tar.zst" ]; then
 elif [ -d "%{_sourcedir}/drivers" ]; then
     cp -a %{_sourcedir}/{drivers,tools,howdy,udev,Makefile,install.sh,enable_polkit_howdy.sh,disable_polkit_howdy.sh,LICENSE,README.md} .
 fi
-rm -rf tools/ir-grab/build
 
 %build
 # Build kernel modules for all kernel flavors (default)
@@ -65,10 +62,6 @@ for flavor in %{flavors_to_build}; do
     done
 done
 
-# Build userland ir-grab tool
-meson setup tools/ir-grab/build tools/ir-grab --prefix=%{_prefix}
-ninja -C tools/ir-grab/build
-
 %install
 # Install kernel modules to updates directory
 export INSTALL_MOD_PATH=%{buildroot}
@@ -80,24 +73,12 @@ for flavor in %{flavors_to_build}; do
     done
 done
 
-# Install ir-grab helper tool
-install -D -m 0755 tools/ir-grab/build/ir-grab %{buildroot}%{_libexecdir}/howdy/ir-grab
-
 # Install udev rules for IR strobe and power management
 install -D -m 0644 udev/99-lm3643-torch.rules %{buildroot}%{_udevrulesdir}/99-lm3643-torch.rules
 install -D -m 0644 udev/99-hp-camera-pm.rules %{buildroot}%{_udevrulesdir}/99-hp-camera-pm.rules
 
 # Install systemd sleep hook for Modern Standby (s2idle) resume
 install -D -m 0755 tools/hp-camera-sleep.sh %{buildroot}%{_prefix}/lib/systemd/system-sleep/hp-camera-sleep.sh
-
-# Install Howdy recorder plugins & 3D anti-spoofing
-install -D -m 0644 howdy/recorders/ir_libcamera_reader.py %{buildroot}%{_prefix}/lib64/howdy/recorders/ir_libcamera_reader.py
-install -D -m 0644 howdy/recorders/tof_verifier.py %{buildroot}%{_prefix}/lib64/howdy/recorders/tof_verifier.py
-install -D -m 0644 howdy/recorders/video_capture.py %{buildroot}%{_prefix}/lib64/howdy/recorders/video_capture.py
-
-# Install Polkit helper scripts
-install -D -m 0755 enable_polkit_howdy.sh %{buildroot}%{_sbindir}/enable_polkit_howdy.sh
-install -D -m 0755 disable_polkit_howdy.sh %{buildroot}%{_sbindir}/disable_polkit_howdy.sh
 
 %post
 %udev_rules_update
@@ -111,18 +92,9 @@ udevadm trigger --subsystem-match=leds --action=change || true
 %files
 %license LICENSE
 %doc README.md
-%dir %{_libexecdir}/howdy
-%{_libexecdir}/howdy/ir-grab
 %{_udevrulesdir}/99-lm3643-torch.rules
 %{_udevrulesdir}/99-hp-camera-pm.rules
 %{_prefix}/lib/systemd/system-sleep/hp-camera-sleep.sh
-%dir %{_prefix}/lib64/howdy
-%dir %{_prefix}/lib64/howdy/recorders
-%{_prefix}/lib64/howdy/recorders/ir_libcamera_reader.py
-%{_prefix}/lib64/howdy/recorders/tof_verifier.py
-%{_prefix}/lib64/howdy/recorders/video_capture.py
-%{_sbindir}/enable_polkit_howdy.sh
-%{_sbindir}/disable_polkit_howdy.sh
 
 %changelog
 

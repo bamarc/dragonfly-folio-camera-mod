@@ -1,3 +1,6 @@
 Requires:       %{name} >= %{version}
+Obsoletes:      %{name}-kmp-%1 < %_this_kmp_version
+Provides:       %{name}-kmp-%1-%_this_kmp_kernel_version = %_this_kmp_version
+Obsoletes:      %{name}-kmp-%1-%_this_kmp_kernel_version < %_this_kmp_version
 Enhances:       kernel-%1
 Supplements:    packageand(kernel-%1:%{name})

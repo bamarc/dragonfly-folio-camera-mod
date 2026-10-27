@@ -66,9 +66,6 @@ ninja -C tools/ir-grab/build
 # Install ir-grab helper tool
 install -D -m 0755 tools/ir-grab/build/ir-grab %{buildroot}%{_libexecdir}/howdy/ir-grab
 
-# Install udev rule for IR strobe
-install -D -m 0644 udev/99-lm3643-torch.rules %{buildroot}%{_udevrulesdir}/99-lm3643-torch.rules
-
 # Install Howdy recorder plugins
 install -D -m 0644 howdy/recorders/ir_libcamera_reader.py %{buildroot}%{_prefix}/lib64/howdy/recorders/ir_libcamera_reader.py
 install -D -m 0644 howdy/recorders/tof_verifier.py %{buildroot}%{_prefix}/lib64/howdy/recorders/tof_verifier.py
@@ -81,18 +78,11 @@ install -D -m 0644 howdy/config.ini.example %{buildroot}%{_datadir}/howdy/config
 install -D -m 0755 enable_polkit_howdy.sh %{buildroot}%{_sbindir}/enable_polkit_howdy.sh
 install -D -m 0755 disable_polkit_howdy.sh %{buildroot}%{_sbindir}/disable_polkit_howdy.sh
 
-%post
-%udev_rules_update
-
-%postun
-%udev_rules_update
-
 %files
 %license LICENSE
 %doc README.md
 %dir %{_libexecdir}/howdy
 %{_libexecdir}/howdy/ir-grab
-%{_udevrulesdir}/99-lm3643-torch.rules
 %dir %{_prefix}/lib64/howdy
 %dir %{_prefix}/lib64/howdy/recorders
 %{_prefix}/lib64/howdy/recorders/ir_libcamera_reader.py
