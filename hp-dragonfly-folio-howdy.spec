@@ -16,7 +16,7 @@
 #
 
 Name:           hp-dragonfly-folio-howdy
-Version:        0.1.0
+Version:        0.1.2
 Release:        0
 Summary:        Howdy facial authentication integration and 3D ToF anti-spoofing for HP Dragonfly Folio G3
 License:        GPL-2.0-only

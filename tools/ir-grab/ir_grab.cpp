@@ -448,8 +448,13 @@ int main(int argc, char *argv[]) {
     while (!g_stop.load()) {
         // Check timeout
         auto now = std::chrono::steady_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
-        if (max_seconds > 0 && elapsed >= max_seconds) {
+        auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count();
+        if (max_seconds > 0 && elapsed_ms >= static_cast<int64_t>(max_seconds) * 1000) {
+            break;
+        }
+        // Fast-fail if no initial frame arrives within 1500ms (e.g. IPU6 ISYS port wedged)
+        if (frames_sent == 0 && elapsed_ms >= 1500) {
+            if (verbose) std::cerr << "Timed out waiting for first frame from IPU6\n";
             break;
         }
 

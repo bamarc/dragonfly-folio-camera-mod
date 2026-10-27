@@ -43,9 +43,9 @@ class VideoCapture:
 			is_pipeline = device_path.startswith("pipewire") or device_path.startswith("libcamera")
 			if not is_pipeline and not os.path.exists(device_path):
 				if self.config.getboolean("video", "warn_no_device", fallback=True):
-					print(_("Howdy could not find a camera device at the path specified in the config file."))
-					print(_("It is very likely that the path is not configured correctly, please edit the 'device_path' config value by running:"))
-					print("\n\tsudo howdy config\n")
+					print(_("Howdy could not find a camera device at the path specified in the config file."), file=sys.stderr)
+					print(_("It is very likely that the path is not configured correctly, please edit the 'device_path' config value by running:"), file=sys.stderr)
+					print("\n\tsudo howdy config\n", file=sys.stderr)
 				sys.exit(14)
 
 		# Turn on flash / torch if configured (ir_libcamera handles torch inside ir-grab)
@@ -132,7 +132,7 @@ class VideoCapture:
 		# Don't remove ret, it doesn't work without it
 		ret, frame = self.internal.read()
 		if not ret:
-			print(_("Failed to read camera specified in the 'device_path' config option, aborting"))
+			print(_("Failed to read camera specified in the 'device_path' config option, aborting"), file=sys.stderr)
 			sys.exit(14)
 
 		try:
@@ -142,7 +142,7 @@ class VideoCapture:
 		except RuntimeError:
 			gsframe = frame
 		except cv2.error:
-			print("\nAn error occurred in OpenCV\n")
+			print("\nAn error occurred in OpenCV\n", file=sys.stderr)
 			raise
 		return frame, gsframe
 

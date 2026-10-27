@@ -16,7 +16,7 @@
 #
 
 Name:           hp-dragonfly-folio-camera
-Version:        0.1.1
+Version:        0.1.2
 Release:        0
 Summary:        Linux camera drivers and IR tools for HP Dragonfly Folio 13.5-inch G3
 License:        GPL-2.0-only
@@ -98,6 +98,15 @@ install -D -m 0644 howdy/recorders/video_capture.py %{buildroot}%{_prefix}/lib64
 # Install Polkit helper scripts
 install -D -m 0755 enable_polkit_howdy.sh %{buildroot}%{_sbindir}/enable_polkit_howdy.sh
 install -D -m 0755 disable_polkit_howdy.sh %{buildroot}%{_sbindir}/disable_polkit_howdy.sh
+
+%post
+%udev_rules_update
+udevadm trigger --subsystem-match=pci --action=add || true
+udevadm trigger --subsystem-match=platform --action=add || true
+udevadm trigger --subsystem-match=leds --action=change || true
+
+%postun
+%udev_rules_update
 
 %files
 %license LICENSE

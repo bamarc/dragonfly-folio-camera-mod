@@ -695,9 +695,6 @@ static int ov08a10_power_off(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov08a10 *ov08a10 = to_ov08a10(sd);
-	struct i2c_client *client = ov08a10->client;
-	struct device *host_dev = client ? client->adapter->dev.parent : NULL;
-	struct device *pci_dev = host_dev ? host_dev->parent : NULL;
 
 	if (!ov08a10->powered_on)
 		return 0;
@@ -708,7 +705,7 @@ static int ov08a10_power_off(struct device *dev)
 	if (ov08a10->imgclk)
 		clk_disable_unprepare(ov08a10->imgclk);
 
-	if (ov08a10->avdd)
+	if (ov08a10->avdd && regulator_is_enabled(ov08a10->avdd))
 		regulator_disable(ov08a10->avdd);
 
 	if (ov08a10->privacy_led)
@@ -717,11 +714,6 @@ static int ov08a10_power_off(struct device *dev)
 	ov08a10->powered_on = false;
 	msleep(50);
 
-	if (host_dev)
-		pm_runtime_put(host_dev);
-	if (pci_dev)
-		pm_runtime_put(pci_dev);
-
 	return 0;
 }
 
@@ -729,29 +721,10 @@ static int ov08a10_power_on(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov08a10 *ov08a10 = to_ov08a10(sd);
-	struct i2c_client *client = ov08a10->client;
-	struct device *host_dev = client ? client->adapter->dev.parent : NULL;
-	struct device *pci_dev = host_dev ? host_dev->parent : NULL;
 	int ret;
 
 	if (ov08a10->powered_on)
 		return 0;
-
-	if (pci_dev) {
-		ret = pm_runtime_get_sync(pci_dev);
-		if (ret < 0)
-			pm_runtime_put_noidle(pci_dev);
-	}
-	if (host_dev) {
-		ret = pm_runtime_get_sync(host_dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(host_dev);
-			if (pci_dev)
-				pm_runtime_put(pci_dev);
-			dev_err(dev, "Failed to wake I2C host: %d\n", ret);
-			return ret;
-		}
-	}
 
 	dev_info(dev, "ov08a10_power_on: starting (avdd=%p, imgclk=%p, reset_gpio=%p, privacy_led=%p)\n",
 		 ov08a10->avdd, ov08a10->imgclk, ov08a10->reset_gpio, ov08a10->privacy_led);
@@ -801,10 +774,6 @@ err_avdd:
 err_privacy:
 	if (ov08a10->privacy_led)
 		led_set_brightness_sync(ov08a10->privacy_led, 0);
-	if (host_dev)
-		pm_runtime_put(host_dev);
-	if (pci_dev)
-		pm_runtime_put(pci_dev);
 	return ret;
 }
 
@@ -900,9 +869,6 @@ static int __maybe_unused ov08a10_suspend(struct device *dev)
 	if (ov08a10->streaming)
 		ov08a10_stop_streaming(ov08a10);
 
-	if (ov08a10->powered_on)
-		ov08a10_power_off(dev);
-
 	mutex_unlock(&ov08a10->mutex);
 
 	return 0;
@@ -917,18 +883,10 @@ static int __maybe_unused ov08a10_resume(struct device *dev)
 
 	mutex_lock(&ov08a10->mutex);
 	if (ov08a10->streaming) {
-		ret = ov08a10_power_on(dev);
-		if (ret) {
-			ov08a10->streaming = false;
-			mutex_unlock(&ov08a10->mutex);
-			return ret;
-		}
-
 		ret = ov08a10_start_streaming(ov08a10);
 		if (ret) {
 			ov08a10->streaming = false;
 			ov08a10_stop_streaming(ov08a10);
-			ov08a10_power_off(dev);
 			mutex_unlock(&ov08a10->mutex);
 			return ret;
 		}

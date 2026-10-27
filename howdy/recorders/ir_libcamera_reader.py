@@ -5,6 +5,7 @@
 import atexit
 import configparser
 import os
+import select
 import subprocess
 import sys
 import time
@@ -81,6 +82,10 @@ class ir_libcamera_reader:
 		self._start_ir_grab()
 
 	def _start_ir_grab(self):
+		# Abort immediately if the system is entering sleep/hibernate
+		if os.path.exists("/run/hp-camera-sleeping"):
+			return
+
 		if self.tof_verifier is not None and self.tof_verifier.enabled:
 			passed, reason, _ = self.tof_verifier.verify()
 			if not passed:
@@ -99,10 +104,12 @@ class ir_libcamera_reader:
 			"--exposure", str(self.exposure),
 			"--torch", self.torch_path,
 			"--torch-level", str(self.torch_level),
-			"--max-seconds", str(max(15, self.timeout + 5))
+			"--max-seconds", str(max(8, self.timeout + 3))
 		]
 
 		for attempt in range(2):
+			if os.path.exists("/run/hp-camera-sleeping"):
+				break
 			try:
 				self.proc = subprocess.Popen(
 					cmd,
@@ -114,8 +121,13 @@ class ir_libcamera_reader:
 				# Allow pipeline a brief moment to initialize and check if it exited immediately
 				time.sleep(0.15)
 				if self.proc.poll() is not None:
-					print(f"[ir_libcamera_reader] ir-grab exited immediately on attempt {attempt+1}, retrying...", file=sys.stderr)
-					time.sleep(0.3)
+					rc = self.proc.returncode
+					self.proc = None
+					# Exit code 3 means hardware/ISYS configure or start failed; do not waste time retrying
+					if rc == 3:
+						break
+					print(f"[ir_libcamera_reader] ir-grab exited immediately on attempt {attempt+1} (rc={rc}), retrying...", file=sys.stderr)
+					time.sleep(0.2)
 					continue
 				if not self._atexit_registered:
 					atexit.register(self.release)
@@ -124,7 +136,7 @@ class ir_libcamera_reader:
 			except Exception as e:
 				print(_("Failed to start ir-grab: %s") % str(e), file=sys.stderr)
 				self.proc = None
-				time.sleep(0.2)
+				break
 
 	def set(self, prop, setting):
 		if prop == CAP_PROP_FRAME_WIDTH:
@@ -140,15 +152,25 @@ class ir_libcamera_reader:
 			return float(self.height)
 		return 0.0
 
-	def _read_exact(self, nbytes):
+	def _read_exact(self, nbytes, timeout_sec=1.8):
 		if self.proc is None or self.proc.stdout is None:
 			return None
 
+		fd = self.proc.stdout.fileno()
 		buf = bytearray(nbytes)
 		view = memoryview(buf)
 		pos = 0
+		deadline = time.monotonic() + timeout_sec
 		while pos < nbytes:
-			chunk = self.proc.stdout.read(nbytes - pos)
+			remaining = deadline - time.monotonic()
+			if remaining <= 0:
+				self.release()
+				return None
+			r, _, _ = select.select([fd], [], [], remaining)
+			if not r:
+				self.release()
+				return None
+			chunk = os.read(fd, nbytes - pos)
 			if not chunk:
 				return None
 			view[pos:pos + len(chunk)] = chunk

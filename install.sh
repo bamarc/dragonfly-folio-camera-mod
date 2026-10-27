@@ -99,6 +99,7 @@ cp "$SCRIPT_DIR/tools/hp-presence/hp-presence.service" /usr/lib/systemd/user/hp-
 chmod 0644 /usr/lib/systemd/user/hp-presence.service
 
 if [ -n "$SUDO_USER" ]; then
+    chown -R "$SUDO_USER:$(id -gn "$SUDO_USER")" "$SCRIPT_DIR/tools/ir-grab/build" "$SCRIPT_DIR/drivers" 2>/dev/null || true
     USER_ID="$(id -u "$SUDO_USER")"
     if [ -d "/run/user/${USER_ID}" ]; then
         sudo -u "$SUDO_USER" XDG_RUNTIME_DIR="/run/user/${USER_ID}" systemctl --user daemon-reload || true

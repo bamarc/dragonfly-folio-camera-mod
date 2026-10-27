@@ -1,18 +1,21 @@
 # HP Dragonfly Folio G3 - Camera & I2C Controller Power Management Rules
 #
-# Prevent Intel LPSS I2C controllers and IPU6 ISP from entering PCI D3hot
-# runtime autosuspend. Autosuspending these controllers causes clock desynchronization
-# and silicon-level bus lockups ("timeout in disabling adapter", "controller timed out")
-# when the camera power rails cycle during screen lock or Modern Standby (s2idle).
-
-# Intel IPU6 (Imaging Signal Processor) - 8086:465d
-ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x8086", ATTR{device}=="0x465d", ATTR{power/control}="on"
-ACTION=="add|bind", SUBSYSTEM=="pci", KERNEL=="0000:00:05.0", ATTR{power/control}="on"
+# Prevent Intel LPSS I2C controllers and their child DesignWare I2C platform
+# adapters from entering runtime autosuspend. Autosuspending these I2C buses
+# causes clock desynchronization and silicon-level bus lockups ("timeout in
+# disabling adapter", "controller timed out") when camera power rails cycle.
+#
+# NOTE: Intel IPU6 (0000:00:05.0) is intentionally left at power/control="auto"
+# so its Buttress/CSE security processor cleanly suspends when idle before the
+# system enters s2idle / S4 hibernate (preventing 0xffffffeb / -110 FW lockups).
 
 # Intel Alder Lake-P Serial IO I2C Controller #3 (OV08A10 RGB sensor bus) - 8086:51d9
 ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x8086", ATTR{device}=="0x51d9", ATTR{power/control}="on"
 ACTION=="add|bind", SUBSYSTEM=="pci", KERNEL=="0000:00:10.1", ATTR{power/control}="on"
+ACTION=="add|bind", SUBSYSTEM=="platform", DRIVER=="i2c_designware", KERNEL=="i2c_designware.1", ATTR{power/control}="on"
 
 # Intel Alder Lake-P Serial IO I2C Controller #0 (OG0VA1B IR sensor & LM3643 torch bus) - 8086:51c5
 ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x8086", ATTR{device}=="0x51c5", ATTR{power/control}="on"
 ACTION=="add|bind", SUBSYSTEM=="pci", KERNEL=="0000:00:19.0", ATTR{power/control}="on"
+ACTION=="add|bind", SUBSYSTEM=="platform", DRIVER=="i2c_designware", KERNEL=="i2c_designware.4", ATTR{power/control}="on"
+
